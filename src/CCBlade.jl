@@ -9,7 +9,8 @@ Allows for non-ideal conditions (reversed flow, no wind in one direction, etc.)
 module CCBlade
 
 using Roots: fzero  # solve residual equation
-using Dierckx  # cubic b-spline for airfoil cl/cd data
+# using Dierckx  # cubic b-spline for airfoil cl/cd data
+using AirfoilPrep #generates ND cubic b-spline from input ND table of airfoil data with dimensions (cl,cd,cm...) for (aoa,Re,M...)
 # using ForwardDiff
 
 export AirfoilData, Rotor, Inflow
@@ -20,11 +21,11 @@ export distributedloads, thrusttorque, nondim
 # TODO re-add AD gradients
 # include("/Users/andrewning/Dropbox/BYU/repos/gradients/Smooth.jl")
 
-# pretabulated cl/cd data
-struct AirfoilData
-    cl::Spline1D
-    cd::Spline1D
-end
+# # pretabulated cl/cd data
+# struct AirfoilData
+#     cl::Spline1D
+#     cd::Spline1D
+# end
 
 """
     Rotor(r, chord, theta, af, Rhub, Rtip, B, precone)
@@ -57,82 +58,84 @@ struct Inflow
     Vx#::Array{Float64, 1}
     Vy#::Array{Float64, 1}
     rho#::Float64
+    mu#::Float64 #dynamic viscosity
+    a#::Float64 #speed of sound
 end
 
-
-"""
-    af_from_aerodynfile(filename)
-
-Read an airfoil file provided in AeroDyn file format.
-Currently only reads one Reynolds number if multiple exist.
-Returns an AirfoilData object
-"""
-function af_from_aerodynfile(filename)
-
-    alpha = Float64[]
-    cl = Float64[]
-    cd = Float64[]
-
-    open(filename) do f
-
-        # skip header
-        for i = 1:13
-            readline(f)
-        end
-
-        # read until EOT
-        while true
-            line = readline(f)
-            if contains(line, "EOT")
-                break
-            end
-            parts = split(line)
-            push!(alpha, float(parts[1]))
-            push!(cl, float(parts[2]))
-            push!(cd, float(parts[3]))
-        end
-    end
-
-    return af_from_data(alpha, cl, cd)
-end
-
-
-
-"""
-    af_from_data(alpha, cl, cd)
-
-Create an AirfoilData object directly from alpha, cl, and cd arrays.
-
-af_from_aerodynfile calls this function indirectly.  Uses a cubic B-spline
-(if the order of the data permits it).  A small amount of smoothing of
-lift and drag coefficients is also applied to aid performance
-for gradient-based optimization.
-"""
-function af_from_data(alpha, cl, cd)
-
-    k = min(length(alpha)-1, 3)  # can't use cubic spline is number of entries in alpha is small
-
-    # 1D interpolations for now.  ignoring Re dependence (which is very minor)
-    afcl = Dierckx.Spline1D(alpha*pi/180.0, cl; k=k, s=0.1)
-    afcd = Dierckx.Spline1D(alpha*pi/180.0, cd; k=k, s=0.001)
-    af = AirfoilData(afcl, afcd)
-
-    return af
-end
+#
+# """
+#     af_from_aerodynfile(filename)
+#
+# Read an airfoil file provided in AeroDyn file format.
+# Currently only reads one Reynolds number if multiple exist.
+# Returns an AirfoilData object
+# """
+# function af_from_aerodynfile(filename)
+#
+#     alpha = Float64[]
+#     cl = Float64[]
+#     cd = Float64[]
+#
+#     open(filename) do f
+#
+#         # skip header
+#         for i = 1:13
+#             readline(f)
+#         end
+#
+#         # read until EOT
+#         while true
+#             line = readline(f)
+#             if contains(line, "EOT")
+#                 break
+#             end
+#             parts = split(line)
+#             push!(alpha, float(parts[1]))
+#             push!(cl, float(parts[2]))
+#             push!(cd, float(parts[3]))
+#         end
+#     end
+#
+#     return af_from_data(alpha, cl, cd)
+# end
 
 
-"""
-private
 
-evalute airfoil spline at alpha
-"""
-function airfoil(af::AirfoilData, alpha::Float64)
+# """
+#     af_from_data(alpha, cl, cd)
+#
+# Create an AirfoilData object directly from alpha, cl, and cd arrays.
+#
+# af_from_aerodynfile calls this function indirectly.  Uses a cubic B-spline
+# (if the order of the data permits it).  A small amount of smoothing of
+# lift and drag coefficients is also applied to aid performance
+# for gradient-based optimization.
+# """
+# function af_from_data(alpha, cl, cd)
+#
+#     k = min(length(alpha)-1, 3)  # can't use cubic spline is number of entries in alpha is small
+#
+#     # 1D interpolations for now.  ignoring Re dependence (which is very minor)
+#     afcl = Dierckx.Spline1D(alpha*pi/180.0, cl; k=k, s=0.1)
+#     afcd = Dierckx.Spline1D(alpha*pi/180.0, cd; k=k, s=0.001)
+#     af = AirfoilData(afcl, afcd)
+#
+#     return af
+# end
 
-    cl = af.cl(alpha)
-    cd = af.cd(alpha)
 
-    return cl, cd
-end
+# """
+# private
+#
+# evalute airfoil spline at alpha
+# """
+# function airfoil(af::AirfoilData, alpha::Float64)
+#
+#     cl = af.cl(alpha)
+#     cd = af.cd(alpha)
+#
+#     return cl, cd
+# end
 
 
 # function airfoil{T<:ForwardDiff.Dual}(af::AirfoilData, alpha::T)
@@ -161,12 +164,12 @@ Uniform inflow through rotor.  Returns an Inflow object.
 - `precone::Float64`: precone angle (rad)
 - `rho::Float64`: air density (kg/m^3)
 """
-function simpleinflow(Vinf, Omega, r, precone, rho)
+function simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 
     Vx = Vinf * cos(precone) * ones(r)
     Vy = Omega * r * cos(precone)
 
-    return Inflow(Vx, Vy, rho)
+    return Inflow(Vx, Vy, rho, mu, a)
 
 end
 
@@ -260,7 +263,7 @@ function residualbase(phi, x, p)
 
     # unpack variables for convenience
     r, chord, twist, Vx, Vy, Rhub, Rtip, rho = x
-    af, B = p
+    af, B, Re, M = p
 
     # constants
     sigma_p = B/2.0/pi*chord/r
@@ -275,7 +278,11 @@ function residualbase(phi, x, p)
     # Re = rho * W_Re * chord / mu
 
     # airfoil cl/cd
-    cl, cd = airfoil(af, alpha)
+    # cl, cd = airfoil(af, alpha)
+    vars = (alpha,Re,M)
+    cl = AirfoilPrep.interpND(af[1],vars)
+    cd = AirfoilPrep.interpND(af[2],vars)
+    # cm = AirfoilPrep.interpND(splout_extrap[3],vars)
 
     # resolve into normal and tangential forces
     cn = cl*cphi + cd*sphi
@@ -573,7 +580,12 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
 
         # wrapper to residual function to accomodate format required by fzero
         x = [rotor.r[i], rotor.chord[i], twist, Vx, Vy, rotor.Rhub, rotor.Rtip, inflow.rho]
-        p = [rotor.af[i], rotor.B]
+
+        vw = sqrt(inflow.vx^2+inflow.vy^2)
+        Re = inflow.rho*vw*rotor.chord
+        M = vw/inflow.a
+        
+        p = [rotor.af[i], rotor.B, Re, M]
         function func(x, phi)
             zero, Npinner, Tpinner = resid(phi, x, p)
             return [Npinner; Tpinner], zero
