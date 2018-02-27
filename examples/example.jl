@@ -29,34 +29,34 @@ theta = pi/180.0*[40.2273, 38.7657, 37.3913, 36.0981, 34.8803, 33.5899, 31.6400,
                    12.8685, 12.5233, 12.2138]
 B = 2  # number of blades
 
-# aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
-#
-# n = length(r)
-# af = Array(CCBlade.AirfoilData, n)
-# for i = 1:n
-#     af[i] = aftype
-# end
-
-#Load the prop airfoil ND table
-ClarkY_non_extrap = JLD.load("$(fileLoc)/airfoils/af_prop_ClarkY.jld")
-ClarkY_non_extrap = ClarkY_non_extrap["NDtable"]
-TSR = .231
-
-grid_alphas=[i for i in -180:1.0:180]
+aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
 
 n = length(r)
-# af = Array{Any}(n)
-# for i = 1:n
+af = Array(CCBlade.AirfoilData, n)
+for i = 1:n
+    af[i] = aftype
+end
+
+# #Load the prop airfoil ND table
+# ClarkY_non_extrap = JLD.load("$(fileLoc)/airfoils/af_prop_ClarkY.jld")
+# ClarkY_non_extrap = ClarkY_non_extrap["NDtable"]
+# TSR = .231
 #
-#     r_over_R = r[i]
-#     c_over_r = chord[i]/r[i]
-#     NDextrap3D_3Dtable = AirfoilPrep.NDTable_correction3D_extrap(ClarkY_non_extrap,r_over_R,c_over_r,TSR;grid_alphas=grid_alphas)
-#     afspl = AirfoilPrep.SplineND_from_tableND(NDextrap3D_3Dtable)
-#     af[i] = afspl
-# end
-# JLD.save("$(fileLoc)/airfoils/af.jld", "af", af)
-af = JLD.load("$(fileLoc)/airfoils/af.jld")
-af = af["af"]
+# grid_alphas=[i for i in -180:1.0:180]
+#
+# n = length(r)
+# # af = Array{Any}(n)
+# # for i = 1:n
+# #
+# #     r_over_R = r[i]
+# #     c_over_r = chord[i]/r[i]
+# #     NDextrap3D_3Dtable = AirfoilPrep.NDTable_correction3D_extrap(ClarkY_non_extrap,r_over_R,c_over_r,TSR;grid_alphas=grid_alphas)
+# #     afspl = AirfoilPrep.SplineND_from_tableND(NDextrap3D_3Dtable)
+# #     af[i] = afspl
+# # end
+# # JLD.save("$(fileLoc)/airfoils/af.jld", "af", af)
+# af = JLD.load("$(fileLoc)/airfoils/af.jld")
+# af = af["af"]
 
 
 precone = 0.0
@@ -68,18 +68,27 @@ a = 1225 #km/h
 Vinf = 10.0
 Omega = 8000.0*pi/30.0*scale/4.19
 
-inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
+inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)#, mu, a)
 rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone)
 
 turbine = false
 
 # @enter CCBlade.distributedloads(rotor, inflow, turbine)
-Np, Tp = CCBlade.distributedloads(rotor, inflow, turbine)
+Np, Tp, uvec, vvec = CCBlade.distributedloads(rotor, inflow, turbine)
 
 PyPlot.figure("loads")
 PyPlot.plot(r/Rtip, Np,label = "Normal")
 PyPlot.plot(r/Rtip, Tp, label = "Tangential")
 PyPlot.legend(loc = "best")
+PyPlot.xlabel("r/R")
+PyPlot.ylabel("Load (N)")
+
+PyPlot.figure("wake")
+PyPlot.plot(r/Rtip, uvec,label = "Normal")
+PyPlot.plot(r/Rtip, vvec, label = "Tangential")
+PyPlot.legend(loc = "best")
+PyPlot.xlabel("r/R")
+PyPlot.ylabel("Wake Velocity (m/s)")
 
 
 J = linspace(0.1, 0.9, 20)
@@ -105,7 +114,7 @@ for i = 1:N
     M[i] = Vinfeff/a
     TSR_arry[i] = TSR = 1/(4*pi*J[i])
 
-    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
+    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)#, mu, a)
 
     T, Q = CCBlade.thrusttorque(rotor, [inflow], turbine)
     eff[i], CT[i], CQ[i] = CCBlade.nondim(T, Q, Vinf, Omega, rho, Rtip, precone, turbine)
@@ -121,17 +130,17 @@ println("Re_ave $Re_ave \n M_ave $M_ave")
 PyPlot.figure("CT")
 PyPlot.plot(J, CT)
 PyPlot.xlabel("J")
-PyPlot.xlabel("CT")
+PyPlot.ylabel("CT")
 
 PyPlot.figure("CQ")
 PyPlot.plot(J, CQ)
 PyPlot.xlabel("J")
-PyPlot.xlabel("CQ")
+PyPlot.ylabel("CQ")
 
 PyPlot.figure("eta")
 PyPlot.plot(J, eff)
 PyPlot.xlabel("J")
-PyPlot.xlabel(L"\eta_prop")
+PyPlot.ylabel(L"\eta_prop")
 
 println("J $J")
 println("eta $eff")

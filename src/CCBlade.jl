@@ -283,7 +283,7 @@ function residualbase(phi, x, p)
     vars = (alpha,Re,M)
 
     cl = AirfoilPrep.interpND(af[1],vars)
-    println(cl)
+    # println(cl)
     cd = AirfoilPrep.interpND(af[2],vars)
     # cm = AirfoilPrep.interpND(splout_extrap[3],vars)
 
@@ -585,10 +585,10 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
         # wrapper to residual function to accomodate format required by fzero
         x = [rotor.r[i], rotor.chord[i], twist, Vx, Vy, rotor.Rhub, rotor.Rtip, inflow.rho]
 
-        vw = sqrt(Vx^2 + Vy^2) #local Vx and Vy 
+        vw = sqrt(Vx^2 + Vy^2) #local Vx and Vy
         Re = inflow.rho * vw * rotor.chord[i]
         M = vw / inflow.a
-        println("$vw")
+        println("$Vx $Vy")
         p = [rotor.af[i], rotor.B, Re, M]
         function func(x, phi)
             zero, Npinner, Tpinner = resid(phi, x, p)
