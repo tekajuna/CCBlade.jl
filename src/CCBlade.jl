@@ -586,9 +586,10 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
         x = [rotor.r[i], rotor.chord[i], twist, Vx, Vy, rotor.Rhub, rotor.Rtip, inflow.rho]
 
         vw = sqrt(Vx^2 + Vy^2) #local Vx and Vy
-        Re = inflow.rho * vw * rotor.chord[i]
+        Re = inflow.rho * vw * rotor.chord[i] / inflow.mu
         M = vw / inflow.a
-        println("$Vx $Vy")
+        # println("$Vx $Vy")
+        println(M)
         p = [rotor.af[i], rotor.B, Re, M]
         function func(x, phi)
             zero, Npinner, Tpinner = resid(phi, x, p)

@@ -29,13 +29,13 @@ theta = pi/180.0*[40.2273, 38.7657, 37.3913, 36.0981, 34.8803, 33.5899, 31.6400,
                    12.8685, 12.5233, 12.2138]
 B = 2  # number of blades
 
-aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
-
-n = length(r)
-af = Array(CCBlade.AirfoilData, n)
-for i = 1:n
-    af[i] = aftype
-end
+# aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
+#
+# n = length(r)
+# af = Array(CCBlade.AirfoilData, n)
+# for i = 1:n
+#     af[i] = aftype
+# end
 
 # #Load the prop airfoil ND table
 # ClarkY_non_extrap = JLD.load("$(fileLoc)/airfoils/af_prop_ClarkY.jld")
@@ -55,8 +55,8 @@ end
 # #     af[i] = afspl
 # # end
 # # JLD.save("$(fileLoc)/airfoils/af.jld", "af", af)
-# af = JLD.load("$(fileLoc)/airfoils/af.jld")
-# af = af["af"]
+af = JLD.load("$(fileLoc)/airfoils/af.jld")
+af = af["af"]
 
 
 precone = 0.0
@@ -68,7 +68,7 @@ a = 1225 #km/h
 Vinf = 10.0
 Omega = 8000.0*pi/30.0*scale/4.19
 
-inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)#, mu, a)
+inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone)
 
 turbine = false
@@ -114,7 +114,7 @@ for i = 1:N
     M[i] = Vinfeff/a
     TSR_arry[i] = TSR = 1/(4*pi*J[i])
 
-    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)#, mu, a)
+    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 
     T, Q = CCBlade.thrusttorque(rotor, [inflow], turbine)
     eff[i], CT[i], CQ[i] = CCBlade.nondim(T, Q, Vinf, Omega, rho, Rtip, precone, turbine)
