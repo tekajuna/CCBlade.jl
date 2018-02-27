@@ -1,3 +1,4 @@
+using Gallium
 fileLoc,_ = splitdir(@__FILE__)
 push!(LOAD_PATH,"$(fileLoc)/../src/")
 using CCBlade
@@ -28,28 +29,22 @@ theta = pi/180.0*[40.2273, 38.7657, 37.3913, 36.0981, 34.8803, 33.5899, 31.6400,
                    12.8685, 12.5233, 12.2138]
 B = 2  # number of blades
 
-aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
+# aftype = CCBlade.af_from_aerodynfile("airfoils/xf-clarky-il-1000000.csv")
+#
+# n = length(r)
+# af = Array(CCBlade.AirfoilData, n)
+# for i = 1:n
+#     af[i] = aftype
+# end
+
+#Load the prop airfoil ND table
+ClarkY_non_extrap = JLD.load("$(fileLoc)/airfoils/af_prop_ClarkY.jld")
+ClarkY_non_extrap = ClarkY_non_extrap["NDtable"]
+TSR = .231
+
+grid_alphas=[i for i in -180:1.0:180]
 
 n = length(r)
-af = Array(CCBlade.AirfoilData, n)
-for i = 1:n
-    af[i] = aftype
-end
-
-# #Load the prop airfoil ND table
-# ClarkY_non_extrap = JLD.load("$(fileLoc)/airfoils/af_prop_ClarkY.jld")
-#
-#
-# V = SysOptInit_M.getvar(::Vinf_CR,x,optvars,optrange,optval,optscale) #m/s
-# n = SysOptInit_M.getvar(::RPM_CR,x,optvars,optrange,optval,optscale)/60 #rev/s
-# D = SysOptInit_M.getvar(::Rtip,x,optvars,optrange,optval,optscale)*2 #m
-# chord = SysOptInit_M.getvar(:chord_prop,x01,optvars,optrange,optval,optscale)*Rtip
-# J = V/(n*D)
-# TSR = 1/(4*pi*J)
-
-# grid_alphas=[i for i in -180:1.0:180]
-
-#
 # af = Array{Any}(n)
 # for i = 1:n
 #
@@ -59,9 +54,10 @@ end
 #     afspl = AirfoilPrep.SplineND_from_tableND(NDextrap3D_3Dtable)
 #     af[i] = afspl
 # end
-#
-# af_CR = af
-# af_TO = af
+# JLD.save("$(fileLoc)/airfoils/af.jld", "af", af)
+af = JLD.load("$(fileLoc)/airfoils/af.jld")
+af = af["af"]
+
 
 precone = 0.0
 
@@ -72,11 +68,12 @@ a = 1225 #km/h
 Vinf = 10.0
 Omega = 8000.0*pi/30.0*scale/4.19
 
-inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)
+inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone)
 
 turbine = false
 
+# @enter CCBlade.distributedloads(rotor, inflow, turbine)
 Np, Tp = CCBlade.distributedloads(rotor, inflow, turbine)
 
 PyPlot.figure("loads")
@@ -108,7 +105,7 @@ for i = 1:N
     M[i] = Vinfeff/a
     TSR_arry[i] = TSR = 1/(4*pi*J[i])
 
-    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho)
+    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 
     T, Q = CCBlade.thrusttorque(rotor, [inflow], turbine)
     eff[i], CT[i], CQ[i] = CCBlade.nondim(T, Q, Vinf, Omega, rho, Rtip, precone, turbine)

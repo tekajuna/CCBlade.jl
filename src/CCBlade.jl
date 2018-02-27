@@ -163,6 +163,7 @@ Uniform inflow through rotor.  Returns an Inflow object.
 - `r::Array{Float64, 1}`: radial locations where inflow is computed (m)
 - `precone::Float64`: precone angle (rad)
 - `rho::Float64`: air density (kg/m^3)
+- `a::Float64`: speed of sound (m/s)
 """
 function simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
 
@@ -280,7 +281,9 @@ function residualbase(phi, x, p)
     # airfoil cl/cd
     # cl, cd = airfoil(af, alpha)
     vars = (alpha,Re,M)
+
     cl = AirfoilPrep.interpND(af[1],vars)
+    println(cl)
     cd = AirfoilPrep.interpND(af[2],vars)
     # cm = AirfoilPrep.interpND(splout_extrap[3],vars)
 
@@ -455,6 +458,7 @@ function firstbracket(f, xmin, xmax, n, backwardsearch=false)
         xvec = reverse(xvec)
     end
 
+
     fprev = f(xvec[1])
     for i = 2:n
         fnext = f(xvec[i])
@@ -581,10 +585,10 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
         # wrapper to residual function to accomodate format required by fzero
         x = [rotor.r[i], rotor.chord[i], twist, Vx, Vy, rotor.Rhub, rotor.Rtip, inflow.rho]
 
-        vw = sqrt(inflow.vx^2+inflow.vy^2)
-        Re = inflow.rho*vw*rotor.chord
-        M = vw/inflow.a
-        
+        vw = sqrt(Vx^2 + Vy^2) #local Vx and Vy 
+        Re = inflow.rho * vw * rotor.chord[i]
+        M = vw / inflow.a
+        println("$vw")
         p = [rotor.af[i], rotor.B, Re, M]
         function func(x, phi)
             zero, Npinner, Tpinner = resid(phi, x, p)
