@@ -280,10 +280,9 @@ function residualbase(phi, x, p)
 
     # airfoil cl/cd
     # cl, cd = airfoil(af, alpha)
-    vars = (alpha,Re,M)
-
+    vars = (alpha*180/pi,Re,M) #spline alphas are in degrees
+    # warn("Spline is implemented in degrees")
     cl = AirfoilPrep.interpND(af[1],vars)
-    # println(cl)
     cd = AirfoilPrep.interpND(af[2],vars)
     # cm = AirfoilPrep.interpND(splout_extrap[3],vars)
 
@@ -588,8 +587,7 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
         vw = sqrt(Vx^2 + Vy^2) #local Vx and Vy
         Re = inflow.rho * vw * rotor.chord[i] / inflow.mu
         M = vw / inflow.a
-        # println("$Vx $Vy")
-        println(M)
+
         p = [rotor.af[i], rotor.B, Re, M]
         function func(x, phi)
             zero, Npinner, Tpinner = resid(phi, x, p)
