@@ -280,7 +280,7 @@ function residualbase(phi, x, p)
 
     # airfoil cl/cd
     # cl, cd = airfoil(af, alpha)
-    vars = (alpha*180/pi,Re,M) #spline alphas are in degrees
+    vars = [alpha*180/pi,Re,M] #spline alphas are in degrees
     # warn("Spline is implemented in degrees")
     cl = AirfoilPrep.interpND(af[1],vars)
     cd = AirfoilPrep.interpND(af[2],vars)
