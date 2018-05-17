@@ -6,6 +6,8 @@ Allows for non-ideal conditions (reversed flow, no wind in one direction, etc.)
 
 =#
 
+# __precompile__()
+
 module CCBlade
 
 using Roots: fzero  # solve residual equation
