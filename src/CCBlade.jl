@@ -53,6 +53,10 @@ struct Rotor
     Rtip#::Float64
     B#::Int64
     precone#::Float64
+    precurve
+    presweep
+    precurvetip
+    presweeptip
 end
 
 # operating point for the turbine/propeller
@@ -155,32 +159,66 @@ end
 # end
 
 """
-    simpleinflow(Vinf, Omega, r, precone, rho)
+    windturbineinflowmultiple(nsectors, Vinf, Omega, r, precone, yaw, tilt, hubHt, shearExp, rho)
 
-Uniform inflow through rotor.  Returns an Inflow object.
-
-**Arguments**
-- `Vinf::Float64`: freestream speed (m/s)
-- `Omega::Float64`: rotation speed (rad/s)
-- `r::Array{Float64, 1}`: radial locations where inflow is computed (m)
-- `precone::Float64`: precone angle (rad)
-- `rho::Float64`: air density (kg/m^3)
-- `a::Float64`: speed of sound (m/s)
+Convenience function that calls windturbineinflow multiple times, once for each azimuthal angle.
+The azimuth angles are uniformly spaced (starting at 0) based on the number of sectors that
+the user wishes to divide the rotor into.
 """
-function simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
+function inflowmultiple(nsectors,Vinf, Omega, r, precone, rho, mu, a; yaw=0.0, tilt=0.0, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = zeros(r), presweep = zeros(r))
 
-    Vx = Vinf * cos(precone) * ones(r)
-    Vy = Omega * r * cos(precone)
+    infs = Array{Inflow}(nsectors)
 
-    return Inflow(Vx, Vy, rho, mu, a)
+    for j = 1:nsectors
+        azimuth = 2*pi*float(j)/nsectors
+        infs[j] = inflow(Vinf, Omega, r, precone, rho, mu, a; yaw=yaw, tilt=tilt, azimuth=azimuth, hubHt=hubHt, shearExp=shearExp, precurve=precurve, presweep=presweep)
+    end
+
+    return infs
 
 end
 
-"""
-    windturbineinflow(Vinf, Omega, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+function definecurvature(r, precurve, presweep, precone)
 
+    n = length(r)
+
+    #out
+    x_az = zeros(n)
+    y_az = zeros(n)
+    z_az = zeros(n)
+    cone = zeros(n)
+    s = zeros(n)
+
+
+    #coordinate in azimuthal coordinate system
+    #az_coords = DirectionVector(precurve, presweep, r).bladeToAzimuth(precone)
+
+    x_az = -r*sin(precone) + precurve*cos(precone)
+    z_az = r*cos(precone) + precurve*sin(precone)
+    y_az = presweep
+
+
+    #compute total coning angle for purposes of relative velocity
+    cone[1] = atan2.(-(x_az[2] - x_az[1]), z_az[2] - z_az[1])
+    cone[2:n-1] = 0.5*(atan2.(-(x_az[2:n-1] - x_az[1:n-2]), z_az[2:n-1] - z_az[1:n-2])+ atan2.(-(x_az[3:n] - x_az[2:n-1]), z_az[3:n] - z_az[2:n-1]))
+    cone[n] = atan2.(-(x_az[n] - x_az[n-1]), z_az[n] - z_az[n-1])
+
+    #total path length of blade
+    # s[1] = 0.0
+    for i = 2:n
+        s[i] = s[i-1] + sqrt((precurve[i] - precurve[i-1])^2 +(presweep[i] - presweep[i-1])^2 + (r[i] - r[i-1])^2)
+    end
+
+    return x_az, y_az, z_az, cone, s
+
+end # function defineCurvature
+
+"""
+     generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=0.0, tilt=0.0, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = zeros(r), presweep = zeros(r))
+
+Defaults to simple inflow
 Compute relative wind velocity components along blade accounting for inflow conditions
-and orientation of turbine.  See theory doc for angle definitions.
+and orientation of rotor/turbine.  See theory doc for angle definitions.
 
 **Arguments**
 - `Vinf::Float64`: freestream speed (m/s)
@@ -190,70 +228,62 @@ and orientation of turbine.  See theory doc for angle definitions.
 - `yaw::Float64`: yaw angle (rad)
 - `tilt::Float64`: tilt angle (rad)
 - `azimuth::Float64`: azimuth angle (rad)
+- `rho::Float64`: air density (kg/m^3)
+- `mu::Float64`: air viscosity (Pa-s)
+- `a::Float64`: air speed of sound (m/s)
+**OptionalArguments**
 - `hubHt::Float64`: hub height (m) - used for shear
 - `shearExp::Float64`: power law shear exponent
-- `rho::Float64`: air density (kg/m^3)
+- `precurve::Array{Float64,1}`: blade offset in the dihedral direciton (m)
+- `presweep::Array{Float64,1}`: blade offset in the sweep direciton (m)
 """
-function windturbineinflow(Vinf, Omega, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+function generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=0.0, tilt=0.0, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = zeros(r), presweep = zeros(r))
 
+    n = length(r)
+
+    Vx = zeros(n)
+    Vy = zeros(n)
+    cone = zeros(n)
+
+    #local
+    # real(dp) :: sy, cy, st, ct, sa, ca, pi, Omega
+    # real(dp), dimension(n) :: cone, sc, cc, x_az, y_az, z_az, sint
+    # real(dp), dimension(n) :: heightFromHub, V, Vwind_x, Vwind_y, Vrot_x, Vrot_y
+
+    #rename
     sy = sin(yaw)
     cy = cos(yaw)
     st = sin(tilt)
     ct = cos(tilt)
     sa = sin(azimuth)
     ca = cos(azimuth)
-    sc = sin(precone)
-    cc = cos(precone)
 
-    # coordinate in azimuthal coordinate system
-    x_az = -r*sin(precone)
-    z_az = r*cos(precone)
-    y_az = zeros(r)  # could omit (the more general case allows for presweep so this is nonzero)
+    x_az, y_az, z_az, cone, s = definecurvature(r, precurve, presweep, precone)
 
-    # get section heights in wind-aligned coordinate system
+    sc = sin.(cone)
+    cc = cos.(cone)
+
+    #get section heights in wind-aligned coordinate system
     heightFromHub = (y_az*sa + z_az*ca)*ct - x_az*st
 
-    # velocity with shear
+    #velocity with shear
     V = Vinf*(1 + heightFromHub/hubHt).^shearExp
 
-    # transform wind to blade c.s.
-    Vwind_x = V .* ((cy*st*ca + sy*sa)*sc + cy*ct*cc)
-    Vwind_y = V .* (cy*st*sa - sy*ca)
+    #transform wind to blade c.s.
+    Vwind_x = V .* ((cy.*st.*ca + sy.*sa).*sc + cy.*ct.*cc)
+    Vwind_y = V .* (cy.*st.*sa - sy.*ca)
 
-    # wind from rotation to blade c.s.
+    #wind from rotation to blade c.s.
     Vrot_x = -Omega*y_az.*sc
     Vrot_y = Omega*z_az
 
-    # total velocity
+    #total velocity
     Vx = Vwind_x + Vrot_x
     Vy = Vwind_y + Vrot_y
 
-    # operating point
-    return Inflow(Vx, Vy, rho)
+    return Inflow(Vx, Vy, rho, mu, a)
 
-end
-
-"""
-    windturbineinflowmultiple(nsectors, Vinf, Omega, r, precone, yaw, tilt, hubHt, shearExp, rho)
-
-Convenience function that calls windturbineinflow multiple times, once for each azimuthal angle.
-The azimuth angles are uniformly spaced (starting at 0) based on the number of sectors that
-the user wishes to divide the rotor into.
-"""
-function windturbineinflowmultiple(nsectors, Vinf, Omega, r, precone, yaw, tilt, hubHt, shearExp, rho)
-
-
-    infs = Array{Inflow}(nsectors)
-
-    for j = 1:nsectors
-        azimuth = 2*pi*float(j)/nsectors
-        infs[j] = windturbineinflow(Vinf, Omega, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
-    end
-
-    return infs
-end
-
-
+end # function windComponents
 
 # x = [r, chord, twist, Vx, Vy, Rhub, Rtip, rho]  (potential design variables or dependencies of design variables)
 # p = [af, B]  (parameters)
@@ -655,22 +685,38 @@ end
 (private)
 integrate the thrust/torque across the blade, including 0 loads at hub/tip
 """
-function thrusttorqueintegrate(Rhub, r, Rtip, precone, Np, Tp)
+function thrusttorqueintegrate(rotor,Np,Tp)
+
+
+    Rhub = rotor.Rhub
+    r = rotor.r
+    Rtip = rotor.Rtip
+    precone = rotor.precone
+    precurve=rotor.precurve
+    presweep=rotor.presweep
+    precurvetip=rotor.precurvetip
+    presweeptip=rotor.presweeptip
 
     # add hub/tip for complete integration.  loads go to zero at hub/tip.
     rfull = [Rhub; r; Rtip]
     Npfull = [0.0; Np; 0.0]
     Tpfull = [0.0; Tp; 0.0]
+    curvefull = [0.0; precurve; precurvetip]
+    sweepfull = [0.0; presweep; presweeptip]
+
+    # get z_az and total cone angle
+    x_az, y_az, z_az, cone, s = definecurvature(rfull, curvefull, sweepfull, precone)
 
     # integrate Thrust and Torque (trapezoidal)
-    thrust = Npfull*cos(precone)
-    torque = Tpfull.*rfull*cos(precone)
+    thrust = Npfull.*cos.(cone)
+    torque = Tpfull.*z_az
 
-    T = trapz(rfull, thrust)
-    Q = trapz(rfull, torque)
+    T = trapz(s, thrust)
+    Q = trapz(s, torque)
 
-    return T, Q
-end
+    return T,Q
+
+end # function thrustTorque
 
 
 """
@@ -707,7 +753,7 @@ function thrusttorque(rotor::Rotor, inflow::Array{Inflow, 1}, turbine::Bool)  #,
 
         Np, Tp = distributedloads(rotor, inflow[j], turbine)
 
-        Tsub, Qsub = thrusttorqueintegrate(rotor.Rhub, rotor.r, rotor.Rtip, rotor.precone, Np, Tp)
+        Tsub, Qsub = thrusttorqueintegrate(rotor, Np, Tp)
 
         T += rotor.B * Tsub / nsectors
         Q += rotor.B * Qsub / nsectors

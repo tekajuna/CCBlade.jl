@@ -70,7 +70,7 @@ af = JLD.load("$(fileLoc)/airfoils/af.jld")
 af = af["af"]
 
 
-precone = 0.0
+precone = 0.0*pi/180
 
 rho = 1.225
 mu = 1.789E-5
@@ -78,9 +78,14 @@ a = 1225 #km/h
 
 Vinf = 10.0
 Omega = 8000.0*pi/30.0*scale/4.19
+precurve = zeros(r)#collect(linspace(0,Rtip,length(r)))
+presweep = zeros(r)
+precurvetip = precurve[end]+precurve[end]-precurve[end-1]
+presweeptip = presweep[end]+presweep[end]-presweep[end-1]
 
-inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
-rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone)
+# inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a)
+inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=0.0, tilt=0.0, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = zeros(r), presweep = zeros(r))
+rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone,precurve, presweep, precurvetip, presweeptip)
 
 turbine = false
 
@@ -106,7 +111,7 @@ J = linspace(0.1, 0.9, 20)
 
 # Omega = 8000.0*pi/30
 n = Omega/(2*pi)
-D = 2*Rtip*cos(precone)
+D = 2*Rtip*cos((precone))
 
 eff = zeros(20)
 CT = zeros(20)
@@ -125,7 +130,7 @@ for i = 1:N
     M[i] = Vinfeff/a
     TSR_arry[i] = TSR = 1/(4*pi*J[i])
 
-    inflow = CCBlade.simpleinflow(Vinf, Omega, r, precone, rho, mu, a)
+    inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a)
 
     T, Q = CCBlade.thrusttorque(rotor, [inflow], turbine)
     eff[i], CT[i], CQ[i] = CCBlade.nondim(T, Q, Vinf, Omega, rho, Rtip, precone, turbine)
