@@ -75,6 +75,8 @@ precone = 0.0*pi/180
 rho = 1.225
 mu = 1.789E-5
 a = 1225 #km/h
+yaw = 00.0*pi/180
+tilt = 00.0*pi/180
 
 Vinf = 10.0
 Omega = 8000.0*pi/30.0*scale/4.19
@@ -84,7 +86,7 @@ precurvetip = precurve[end]+precurve[end]-precurve[end-1]
 presweeptip = presweep[end]+presweep[end]-presweep[end-1]
 
 # inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a)
-inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=0.0, tilt=0.0, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = zeros(r), presweep = zeros(r))
+inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=yaw, tilt=tilt, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = precurve, presweep = presweep)
 rotor = CCBlade.Rotor(r, chord, theta, af, Rhub, Rtip, B, precone,precurve, presweep, precurvetip, presweeptip)
 
 turbine = false
@@ -130,7 +132,7 @@ for i = 1:N
     M[i] = Vinfeff/a
     TSR_arry[i] = TSR = 1/(4*pi*J[i])
 
-    inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a)
+    inflow = CCBlade.generalinflow(Vinf, Omega, r, precone, rho, mu, a; yaw=yaw, tilt=tilt, azimuth=0.0, hubHt = 1.0, shearExp = 0.0, precurve = precurve, presweep = presweep)
 
     T, Q = CCBlade.thrusttorque(rotor, [inflow], turbine)
     eff[i], CT[i], CQ[i] = CCBlade.nondim(T, Q, Vinf, Omega, rho, Rtip, precone, turbine)
