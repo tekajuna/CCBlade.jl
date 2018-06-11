@@ -59,6 +59,16 @@ struct Rotor
     presweeptip
 end
 
+function Rotor(r ,chord ,theta ,af ,Rhub ,Rtip ,B ,precone;
+    precurve = zeros(r),
+    presweep = zeros(r),
+    precurvetip = 0.0,
+    presweeptip = 0.0)
+
+    return Rotor(r,chord,theta,af,Rhub,Rtip,B,precone,precurve,presweep,
+        precurvetip,presweeptip)
+end
+
 # operating point for the turbine/propeller
 struct Inflow
     Vx#::Array{Float64, 1}
