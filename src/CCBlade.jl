@@ -316,6 +316,7 @@ function residualbase(phi, x, p)
     # angle of attack
     alpha = phi - twist
 
+    # println("$(phi*180/pi)  $(twist*180/pi)  $(alpha*180/pi)")
     # # Reynolds number (not currently used)
     # W_Re = sqrt(Vx^2 + Vy^2)  # ignoring induction, which is generally a very minor error and only affects Reynolds number
     # Re = rho * W_Re * chord / mu
@@ -531,6 +532,7 @@ turbine can be true/false depending on if the analysis is for a turbine or prop
 - `Tp::Array{Float64, 1}`: force per unit length in the tangential direction (N/m)
 - `uvec::Array{Float64, 1}`: induced velocity in x direction
 - `vvec::Array{Float64, 1}`: induced velocity in y direction
+- 'alpha::Array{Float64, 1}`: blade aerodynamic angle of attack including induction
 """
 function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
 
@@ -553,6 +555,7 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
     Tp = zeros(n)
     uvec = zeros(n)
     vvec = zeros(n)
+    alpha = zeros(n)
 
     # if isa(rotor.r[1], ForwardDiff.Dual)  # hack for now...I shouldn't have to do this.
     #     nd = length(ForwardDiff.partials(rotor.r[1]))
@@ -672,7 +675,7 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
 
                 phistar = fzero(R, phiL, phiU)
                 _, Np[i], Tp[i], uvec[i], vvec[i] = resid(phistar, x, p)
-
+                alpha[i] = phistar - twist
                 break
             end
 
@@ -685,7 +688,7 @@ function distributedloads(rotor::Rotor, inflow::Inflow, turbine::Bool)
     Tp *= swapsign
     vvec *= swapsign
 
-    return Np, Tp, uvec, vvec
+    return Np, Tp, uvec, vvec, alpha
 end
 
 
