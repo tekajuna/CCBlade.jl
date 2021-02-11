@@ -14,6 +14,7 @@ Some unique features:
 module CCBlade
 
 import FLOWMath
+using Infiltrator
 
 export Rotor, Section, OperatingPoint, Outputs
 export simple_op, windturbine_op
@@ -165,6 +166,10 @@ Outputs() = Outputs(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
 
 # convenience function to access fields within an array of structs
 function Base.getproperty(obj::Vector{Outputs{TF}}, sym::Symbol) where TF
+    return getfield.(obj, sym)
+end
+
+function Base.getproperty(obj::Vector{Outputs}, sym::Symbol) where TF
     return getfield.(obj, sym)
 end
 
