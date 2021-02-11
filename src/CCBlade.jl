@@ -506,7 +506,7 @@ function solve(rotor, section, op)
     # it will return empty outputs
     # alternatively, one could increase npts and try again
     
-    @warn "Invalid data (likely) for this section.  Zero loading assumed."
+    # @warn "Invalid data (likely) for this section.  Zero loading assumed."
     return Outputs()
 end
 
