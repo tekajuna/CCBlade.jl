@@ -14,7 +14,6 @@ Some unique features:
 module CCBlade
 
 import FLOWMath
-using Infiltrator
 
 export Rotor, Section, OperatingPoint, Outputs
 export simple_op, windturbine_op
