@@ -449,7 +449,7 @@ function solve(rotor, section, op)
 
     else  # normal case
 
-        startfrom90 = true
+        startfrom90 = false
 
         if Vx > 0 && Vy > 0
             order = (q1, q2, q3, q4)
@@ -497,7 +497,18 @@ function solve(rotor, section, op)
         if success
             phistar, _ = FLOWMath.brent(R, phiL, phiU)
             _, outputs = residual(phistar, rotor, section, op)
-            return outputs
+
+            if outputs.Np < -10 || outputs.Tp < -10 # run again with backwardssearch => opposite Bool
+                backwardsearch = !backwardsearch
+                success, phiL, phiU = firstbracket(R, phimin, phimax, npts, backwardsearch)
+                if success
+                    phistar, _ = FLOWMath.brent(R, phiL, phiU)
+                    _, outputs = residual(phistar, rotor, section, op)
+                    return outputs
+                end
+            else
+                return outputs
+            end
         end    
     end    
 
