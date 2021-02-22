@@ -18,6 +18,7 @@ import FLOWMath
 export Rotor, Section, OperatingPoint, Outputs
 export simple_op, windturbine_op
 export solve, thrusttorque, nondim
+using Debugger
 
 
 include("airfoils.jl")  # all the code related to airfoil data
@@ -391,7 +392,6 @@ function solve(rotor, section, op)
     if typeof(section) <: Vector
         error("You passed in an vector for section, but this funciton does not accept an vector.\nProbably you intended to use broadcasting (notice the dot): solve.(Ref(rotor), sections, ops)")
     end
-
     # check if we are at hub/tip
     if isapprox(section.r, rotor.Rhub, atol=1e-6) || isapprox(section.r, rotor.Rtip, atol=1e-6)
         return Outputs()  # no loads at hub/tip
@@ -449,7 +449,7 @@ function solve(rotor, section, op)
 
     else  # normal case
 
-        startfrom90 = false
+        startfrom90 = true
 
         if Vx > 0 && Vy > 0
             order = (q1, q2, q3, q4)
