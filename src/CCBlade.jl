@@ -498,7 +498,7 @@ function solve(rotor, section, op)
             phistar, _ = FLOWMath.brent(R, phiL, phiU)
             _, outputs = residual(phistar, rotor, section, op)
 
-            if outputs.Np < -10 || outputs.Tp < -10 # run again with backwardssearch => opposite Bool
+            if outputs.Np < -50 || outputs.Tp < -50 # run again with backwardsearch => opposite Bool #? What's considered abnormal?
                 backwardsearch = !backwardsearch
                 success, phiL, phiU = firstbracket(R, phimin, phimax, npts, backwardsearch)
                 if success
