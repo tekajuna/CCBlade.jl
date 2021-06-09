@@ -9,14 +9,15 @@ R = 1
 χ = 30*pi/180
 
 # sampling position
-ψ = 0
+ψ = 90
 r = .5
 z = 0
 
 # wake intensity
-γt = 1
+γt = -1
 uz0 = γt/2
 
+eps = 1e-3 #small tolerance to avoid evaluating r=R
 
 #θ ; vect - integration variable
 #ψ,r,z ; scalars
@@ -39,9 +40,9 @@ function integ_ut!(k_u,θ,r,ψ,z,m,R)
 
     den = (sqrt.(a) .* (2*sqrt.(a.*c) .+ b) )
 
-    k_u[1,:] = 2 .* (apz .* sqrt.(c) .+ bpz .* sqrt.(a)) ./ den
-    k_u[2,:] = 2 .* (apr .* sqrt.(c) .+ bpr .* sqrt.(a)) ./ den
-    k_u[3,:] = 2 .* (apψ .* sqrt.(c) .+ bpψ .* sqrt.(a)) ./ den
+    k_u[1,:] = 2 .* (apr .* sqrt.(c) .+ bpr .* sqrt.(a)) ./ den
+    k_u[2,:] = 2 .* (apψ .* sqrt.(c) .+ bpψ .* sqrt.(a)) ./ den
+    k_u[3,:] = 2 .* (apz .* sqrt.(c) .+ bpz .* sqrt.(a)) ./ den
 end
 
 function eval_ut(rr, ψψ, zz, χ, R)
@@ -80,7 +81,7 @@ end
 ## -- Perform the integral --
 
 # init, span over a radius, fore-aft diameter if psi = 0
-rr = range(-R,R,length=101)
+rr = range(-R-eps,R+eps,length=101)
 
 ut = eval_ut(rr, ψ, z, χ, R) .* γt
 
@@ -102,16 +103,37 @@ uψt_approx = -tan(χ/2) .* sin(ψ) .* uzt_approx
 
 ## -- Plots --
 
+
 plt.figure(1)
 plot(rr,ut[1,:])
-plot(rr,uzt_approx)
+plot(rr,urt_approx)
 
 plt.figure(2)
 plot(rr,ut[2,:])
-plot(rr,urt_approx)
-
-plt.figure(3)
-plot(rr,ut[3,:])
 plot(rr,uψt_approx)
 plt.show()
 
+plt.figure(3)
+plot(rr,ut[3,:])
+plot(rr,uzt_approx)
+
+## -- Perform the integral --
+#polar plots
+rr = range(0,R-eps,length=17)
+ψψ = range(0,2*pi,length=13)'
+
+ut = eval_ut(rr, ψψ, z, χ, R) .* γt
+
+##
+
+f = plt.figure(4)
+ax = f.add_subplot(111, polar=true)
+
+u1 = ut[1,:,:] .* cos.(ψψ) - ut[2,:,:] .* sin.(ψψ)
+u2 = ut[1,:,:] .* sin.(ψψ) + ut[2,:,:] .* cos.(ψψ)
+ax.quiver(ψψ, rr, u1, u2)
+
+
+f = plt.figure(5)
+ax = f.add_subplot(111, polar=true)
+ax.contour(ψψ, rr, ut[3,:,:],[-.7,-.6,-.5,-.4,-.3])
