@@ -22,7 +22,7 @@ eps = 1e-3 #small tolerance to avoid evaluating r=R
 #θ ; vect - integration variable
 #ψ,r,z ; scalars
 #m,R ; scalars
-#k_u ; [size(θ) x 3] - output
+#k_u ; [3 x size(θ)] - output
 function integ_ut!(k_u,θ,r,ψ,z,m,R)
 
     apz = R .* (R .- r .* cos.(θ .- ψ))
@@ -45,6 +45,37 @@ function integ_ut!(k_u,θ,r,ψ,z,m,R)
     k_u[3,:] = 2 .* (apz .* sqrt.(c) .+ bpz .* sqrt.(a)) ./ den
 end
 
+#ψ,r,z ; vectors/scalars
+#χ,R ; scalars
+#ur ; [2 x size(r) x size(ψ) x size(z)] -  tangential component, and axial component (no induced radial vel)
+### ==== CAUTION =====
+#  This is obviously wrong since it misses the dependence in z!
+#  Plus, it seems like this considers an infinite filament, not a semi-infinite filament !! 
+#     For the semi-infinite filament with chi = 0, the tg vel should be 1/2 Gamma/4/pi/r
+#     Intuition: must be a (1+tan(r/z))/2 with a cos(chi)*(1-cos(psi)) somewhere
+function eval_ur(rr, ψψ, zz, χ, R)
+    nr = length(rr)
+    nψ = length(ψψ)
+    nz = length(zz)
+
+    ur = zeros(2, nr*nψ*nz)
+
+    for i = 0 : nr*nψ*nz - 1
+        ir = mod(i,nr) +1
+        iψ = mod(floor(Int64,i/nr),nψ) +1
+        # iz = floor(Int64,i/(nr*nψ)) +1
+
+        ur[1,i+1] = cos(χ) ./ (4*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
+        ur[2,i+1] = sin(χ) .* sin.(ψψ[iψ]) ./ (4 .*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
+    end
+    ur = reshape(ur,(2,nr,nψ,nz))
+
+    return ur
+end
+
+#ψ,r,z ; vectors/scalars
+#χ,R ; scalars
+#ur ; [2 x size(r) x size(ψ) x size(z)] - output
 function eval_ut(rr, ψψ, zz, χ, R)
 
     # integration stuff
@@ -85,7 +116,6 @@ rr = range(-R-eps,R+eps,length=101)
 
 ut = eval_ut(rr, ψ, z, χ, R) .* γt
 
-
 #--  approximate formulation
 Kzt_approx = rr./R .* tan(χ/2) #another approx exist, only valid on psi=0,z=0
 uzt_approx = uz0 .* ( 1 .+ Kzt_approx .* cos(ψ))
@@ -123,6 +153,7 @@ rr = range(0,R-eps,length=17)
 ψψ = range(0,2*pi,length=13)'
 
 ut = eval_ut(rr, ψψ, z, χ, R) .* γt
+ur = eval_ur(rr, ψψ, z, χ, R) .* γt
 
 ##
 
@@ -137,3 +168,8 @@ ax.quiver(ψψ, rr, u1, u2)
 f = plt.figure(5)
 ax = f.add_subplot(111, polar=true)
 ax.contour(ψψ, rr, ut[3,:,:],[-.7,-.6,-.5,-.4,-.3])
+
+
+f = plt.figure(6)
+ax = f.add_subplot(111, polar=true)
+ax.contour(ψψ, rr, ur[2,:,:],[-.2,-.1,-.05,0,.05,.1,.2])
