@@ -1,6 +1,12 @@
 using FastGaussQuadrature
 using LinearAlgebra
 
+
+# Most of the formulas in this file come from Branlard2016
+# - Be very careful here: he defines the psi angle with respect to the horizontal (i.e. not the standard definition of psi)
+# - all induced velocities here are for a unit gamma_t = uz0*2
+# - all inplace functions are additive
+
 ## ----------------- velocity induced by the tangential vorticity in the outer region -----------------
 
 #θ ; vect - integration variable
@@ -82,6 +88,38 @@ function eval_ut(rr, ψψ, zz, χ, R; n=10000)
     return ut
 end
 
+# -- approximated versions --
+
+# Mind the 1/2 factor so that the restuls has to be multiplied by gamma_t (and uz0 = gamma_t/2)
+
+#neglects radial and tangential components
+function eval_ut_Coleman!(ut_approx, rr, ψψ, zz, χ, R)
+    Kzt_approx = rr./R .* tan(χ/2)
+    ut_approx[3,:] .+= ( 1 .+ Kzt_approx .* cos(ψψ))
+end
+
+#neglects radial and tangential components
+function eval_ut_PittPeters!(ut_approx, rr, ψψ, zz, χ, R)
+    Kzt_approx = rr./R .* tan(χ/2) .* (15.0*pi/32.)
+    ut_approx[3,:] .+= ( 1 .+ Kzt_approx .* cos(ψψ)) *.5
+end
+
+function eval_ut_Branlard!(ut_approx, rr, ψψ, zz, χ, R)
+
+    Kzt_approx = rr./R .* tan(χ/2) #another approx exists, only valid on psi=0,z=0
+    ut_approx[3,:] .+= ( 1 .+ Kzt_approx .* cos(ψψ)) *.5
+    Ft = Kzt_approx ./2 ./ tan(χ/2)
+
+    # Kξt_approx = Kzt_approx ./ sin(χ)
+    # Kxt_approx = Kξt_approx .* cos(χ)
+    # uxt_approx =  (tan(χ/2) .- Kxt_approx .* cos(ψ))
+    # uyt_approx = -uz0 .* Ft .* sec(χ/2)^2 .* sin(ψ)
+
+    ut_approx[1,:] .+= tan(χ/2) .* cos(ψψ) .* ut_approx[3,:] .- Ft .* sec(χ/2)^2 *.5
+    ut_approx[2,:] .+= -tan(χ/2) .* sin(ψψ) .* ut_approx[3,:]
+end
+
+
 
 ## ----------------- velocity induced by the root vorticity -----------------
 
@@ -138,3 +176,6 @@ function eval_u!(u, rr, ψψ, zz, χ, R, k_u, no, we)
     eval_ut!( u, rr, ψψ, zz, χ, R, k_u, no, we)
 
 end
+
+
+## ----------------- epsilon functions for the BEM -----------------
