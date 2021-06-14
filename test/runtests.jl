@@ -1,6 +1,129 @@
 using CCBlade
 using Test
 
+@testset "utilities" begin
+
+pitch = 0
+R = 1.
+
+#-uniform wind
+rho = 1.
+shearExp = 0.
+hubHt = 0.
+Vhub = 1.
+
+#--turbine 1, non-rotating
+yaw = 0.
+tilt = 0.
+precone = -30. *pi/180.
+Omega = 0.
+
+#---condition 1
+azimuth = 0 #upward
+xb = yb = 0.
+zb = R
+lcon = 0.
+lswp = 0.
+
+ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+@test isapprox(ops.Vx, cos(precone), atol=1e-9)  
+@test isapprox(ops.Vy, 0., atol=1e-9)  
+
+#---condition 2
+azimuth = 0 #upward
+xb = yb = 0.
+zb = R
+lcon = 30. *pi/180.
+lswp = 45. *pi/180.
+
+ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+@test isapprox(ops.Vx, 1., atol=1e-9) 
+@test isapprox(ops.Vy, 0., atol=1e-9) 
+
+#---condition 3
+azimuth = .5*pi #upward
+xb = yb = 0.
+zb = R
+lcon = 15. *pi/180.
+lswp = 45. *pi/180.
+
+ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+# println(ops.Vx," ",ops.Vy)
+# println(0.," ",0.)
+@test isapprox(ops.Vx, cos(precone+lcon), atol=1e-9) 
+@test isapprox(ops.Vy, sin(precone+lcon)*sin(lswp), atol=1e-9) 
+
+
+#--turbine 2, non-rotating, yawed
+yaw = 90. *pi/180.
+tilt = 0.
+precone = -30. *pi/180.
+Omega = 0.
+
+#---condition 4
+azimuth = pi #downward
+xb = yb = 0.
+zb = R
+lcon = 0. *pi/180.
+lswp = -10. *pi/180.
+
+ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+@test isapprox(ops.Vx, 0., atol=1e-9) 
+@test isapprox(ops.Vy, cos(lswp), atol=1e-9) 
+
+#- no wind
+Vhub = 0.
+
+#--turbine 3, rotating
+precone = -30. *pi/180.
+Omega = 1. / R
+
+#---condition 5
+azimuth = .5*pi #upward
+xb = yb = 0.
+zb = R
+lcon = 0. *pi/180.
+lswp = 30. *pi/180.
+
+ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+@test isapprox(ops.Vx, 0, atol=1e-9) 
+@test isapprox(ops.Vy, cos(precone)*cos(lswp), atol=1e-9) 
+
+
+# -----------------------------
+
+rotor = Rotor(0., .5, 1., turbine=true)
+r = .05 + 0.:.1:.4
+
+theta = ones(length(r))
+chord = ones(length(r))
+affunc(alpha, Re, M) = (0.,0.)
+
+Np = ones(length(r))
+Tp = ones(length(r))
+
+# -1-
+angl = pi/6
+swp = [angl, angl, angl, angl] 
+
+sections = Section.(r, chord, theta, Ref(affunc) ,
+    zero(r),zero(r),r,zero(r),swp)
+
+outputs = Outputs.(Np, Tp, 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.)
+
+T,Q = thrusttorque(rotor,sections,outputs)
+@test isapprox(T, .4, atol=1e-9) 
+@test isapprox(Q, .0875 * cos(angl), atol=1e-9) 
+
+# -2-
+conicity = [angl, angl, angl, angl]
+
+sections = Section.(r, chord, theta, Ref(affunc) ,
+    zero(r),zero(r),r,conicity,swp)
+T,Q = thrusttorque(rotor,sections,outputs)
+@test isapprox(T, .4 * cos(angl) - .4 * sin(angl)^2, atol=1e-9) 
+@test isapprox(Q, .0875 * cos(angl), atol=1e-9) 
+end
 
 @testset "normal operation" begin
 
@@ -20,7 +143,7 @@ using Test
 # --- rotor definition ---
 Rhub = 0.01
 Rtip = 5.0
-Rtip_eff = 5.0*100  # to eliminate tip effects as consistent with their study.
+Rtip_eff = Rtip*100  # to eliminate tip effects as consistent with their study.
 B = 3  # number of blades
 
 rotor = Rotor(Rhub, Rtip_eff, B, turbine=true)
@@ -271,7 +394,7 @@ end
 Rhub = 1.5
 Rtip = 63.0
 B = 3
-precone = 2.5*pi/180
+precone = -2.5*pi/180
 
 rotor = Rotor(Rhub, Rtip, B; precone=precone, turbine=true)
 
