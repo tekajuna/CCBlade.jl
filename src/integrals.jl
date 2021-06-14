@@ -9,7 +9,7 @@ R = 1
 χ = 30*pi/180
 
 # sampling position
-ψ = 90
+ψ = 90 #Caution: not defined as the standard one
 r = .5
 z = 0
 
@@ -45,6 +45,15 @@ function integ_ut!(k_u,θ,r,ψ,z,m,R)
     k_u[3,:] = 2 .* (apz .* sqrt.(c) .+ bpz .* sqrt.(a)) ./ den
 end
 
+#additive to ut
+function eval_ur!(ur, rr, ψψ, zz, χ, R)
+
+    ur[1] += cos(χ) ./ (4*pi .* rr .* (1.0 .- cos.(ψψ) .* sin(χ)) )
+    ur[3] += sin(χ) .* sin.(ψψ) ./ (4 .*pi .* rr .* (1.0 .- cos.(ψψ) .* sin(χ)) )
+
+end
+
+
 #ψ,r,z ; vectors/scalars
 #χ,R ; scalars
 #ur ; [2 x size(r) x size(ψ) x size(z)] -  tangential component, and axial component (no induced radial vel)
@@ -53,37 +62,53 @@ end
 #  Plus, it seems like this considers an infinite filament, not a semi-infinite filament !! 
 #     For the semi-infinite filament with chi = 0, the tg vel should be 1/2 Gamma/4/pi/r
 #     Intuition: must be a (1+tan(r/z))/2 with a cos(chi)*(1-cos(psi)) somewhere
+# ======================
+#isn't it r/R that we need to use?
 function eval_ur(rr, ψψ, zz, χ, R)
     nr = length(rr)
     nψ = length(ψψ)
     nz = length(zz)
 
-    ur = zeros(2, nr*nψ*nz)
+    ur = zeros(3, nr*nψ*nz)
 
     for i = 0 : nr*nψ*nz - 1
         ir = mod(i,nr) +1
         iψ = mod(floor(Int64,i/nr),nψ) +1
-        # iz = floor(Int64,i/(nr*nψ)) +1
+        iz = floor(Int64,i/(nr*nψ)) +1
 
-        ur[1,i+1] = cos(χ) ./ (4*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
-        ur[2,i+1] = sin(χ) .* sin.(ψψ[iψ]) ./ (4 .*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
+        # ur[1,i+1] = cos(χ) ./ (4*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
+        # ur[3,i+1] = sin(χ) .* sin.(ψψ[iψ]) ./ (4 .*pi .* rr[ir] .* (1.0 .- cos.(ψψ[iψ]) .* sin(χ)) )
+        eval_ur!( view(ur,:,i+1) , rr[ir], ψψ[iψ], zz[iz], χ, R)
     end
-    ur = reshape(ur,(2,nr,nψ,nz))
+    ur = reshape(ur,(3,nr,nψ,nz))
 
     return ur
+end
+
+#additive to ut
+function eval_ut!(ut, rr, ψψ, zz, χ, R, k_u, no, we)
+
+    m = tan(χ)  # x = m*z
+
+    integ_ut!(k_u,no,rr,ψψ,zz,m,R)
+    
+    for j = 1:3
+        ut[j] += dot( we, k_u[j,:] ) * 0.25 # quadrature with interval [0,2pi]: *pi, factor: 1/(4pi)
+    end
 end
 
 #ψ,r,z ; vectors/scalars
 #χ,R ; scalars
 #ur ; [2 x size(r) x size(ψ) x size(z)] - output
-function eval_ut(rr, ψψ, zz, χ, R)
+#n ; number of quadrature points
+function eval_ut(rr, ψψ, zz, χ, R; n=10000)
 
     # integration stuff
-    nodes, weights = gausslegendre( 10000 );
+    nodes, weights = gausslegendre( n );
     nodes .= 2 .* pi .* .5 * (nodes .+ 1)
 
     # params
-    m = tan(χ)  # x = m*z
+    # m = tan(χ)  # x = m*z
     nr = length(rr)
     nψ = length(ψψ)
     nz = length(zz)
@@ -96,18 +121,31 @@ function eval_ut(rr, ψψ, zz, χ, R)
         ir = mod(i,nr) +1
         iψ = mod(floor(Int64,i/nr),nψ) +1
         iz = floor(Int64,i/(nr*nψ)) +1
-        integ_ut!(k_u,nodes,rr[ir],ψψ[iψ],zz[iz],m,R)
+
+        # integ_ut!(k_u,nodes,rr[ir],ψψ[iψ],zz[iz],m,R)
     
-        for j = 1:3
-            ut[j,i+1] = dot( weights, k_u[j,:] ) * pi # quadrature with interval [0,2pi]
-        end
+        # for j = 1:3
+        #     ut[j,i+1] = dot( weights, k_u[j,:] ) * pi # quadrature with interval [0,2pi]
+        # end
+        eval_ut!( view(ut,:,i+1), rr[ir],ψψ[iψ],zz[iz], χ, R, k_u, nodes, weights)
     end
-    ut .*= 1 / (4*pi) 
+    # ut .*= 1 / (4*pi) 
 
     ut = reshape(ut,(3,nr,nψ,nz))
     
     return ut
 end
+
+
+#all induced velocities, sum of tangential component in the tip wake and axial root vortex
+# We neglext the axial component of the tip wake.
+function eval_u!(u, rr, ψψ, zz, χ, R, k_u, no, we)
+
+    eval_ur!( u, rr, ψψ, zz, χ, R)
+    eval_ut!( u, rr, ψψ, zz, χ, R, k_u, no, we)
+
+end
+
 
 ## -- Perform the integral --
 
@@ -131,8 +169,8 @@ urt_approx = tan(χ/2) .* cos(ψ) .* uzt_approx - uz0 .* Ft .* sec(χ/2)^2
 uψt_approx = -tan(χ/2) .* sin(ψ) .* uzt_approx
 
 
-## -- Plots --
 
+## -- Plots --
 
 plt.figure(1)
 plot(rr,ut[1,:])
@@ -172,4 +210,29 @@ ax.contour(ψψ, rr, ut[3,:,:],[-.7,-.6,-.5,-.4,-.3])
 
 f = plt.figure(6)
 ax = f.add_subplot(111, polar=true)
-ax.contour(ψψ, rr, ur[2,:,:],[-.2,-.1,-.05,0,.05,.1,.2])
+ax.contour(ψψ, rr, ur[3,:,:],[-.2,-.1,-.05,0,.05,.1,.2])
+
+
+
+##
+using Test
+
+no, we = gausslegendre( 10000 );
+no .= 2 .* pi .* .5 * (no .+ 1)
+k_u = zeros(3, length(no))
+u = zeros(3)
+
+r = .33
+ψ = 1.
+z = .05
+
+#1
+eval_u!(u, r, ψ, z, χ, R, k_u, no, we)
+
+#2
+ut = eval_ut(r, ψ, z, χ, R; n=10000 )
+ur = eval_ur(r, ψ, z, χ, R)
+
+for i = 1:3
+    @test isapprox(u[i], ut[i]+ur[i], atol=1e-12)
+end
