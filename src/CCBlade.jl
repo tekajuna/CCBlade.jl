@@ -21,6 +21,7 @@ export solve, thrusttorque, nondim
 
 
 include("airfoils.jl")  # all the code related to airfoil data
+include("integrals.jl") # the code related to wake models and integrals to compute induced velocities
 
 # --------- structs -------------
 
