@@ -56,7 +56,7 @@ u_\psi &= I_\psi \gamma_t
 ```
 where the ``I`` factors depend on the above integrals.
 
-For the sequel, it will be convenient to define `epsilon factors`
+For the sequel, it will be convenient to define `epsilon factors`. The conventional result generally corresponds to ``\epsilon_x=1``.
 ```math
 \begin{aligned}
 u_x \epsilon_x &= \gamma_t / 2 \\
@@ -80,7 +80,7 @@ such that
     The relation between these models and the current one is established by noticing that the axial inducation has the form of the model proposed by Glauert:
 
     ```math
-    a = \gamma_t / 2 (1 + K \cos\psi)
+    a = \gamma_t / 2 (1 + K \sin\psi)
     ```
     where ``K`` has an expression that depends on the model.
 
@@ -95,15 +95,12 @@ such that
     although some authors proposed to use a factor ``15\pi/64`` instead (see [Ning2015]).
     Other models can be found in the litterature (see e.g. [Micallef2016])
 
-    In the present model, ``a`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} / U_\infty = \gamma_t / 2 (1 + K_{x,t} \cos\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
-
-    !!! warning
-        the ``\cos\psi`` comes from the definition of ``\psi`` in Branlard. Should read ``\sin\psi`` instead in WT conventions
+    In the present model, ``a`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} / U_\infty = \gamma_t / 2 (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
 
 
 ## Adapted BEM equations
 
-We re-develop the BEM equations following the same logic as in [Ning2020], but for the general case of a turbine with yaw and non-straight/preconed blades. We make use of the definitions of the epsilon factors, and the standard definition of the induction factors:
+We re-develop the BEM equations following the same logic as in [Ning2021], but for the general case of a turbine with yaw and non-straight/preconed blades. We make use of the definitions of the epsilon factors, and the standard definition of the induction factors:
 
 ```math
 a = \frac{u_x}{U_\infty} \quad a' = \frac12 \frac{u_\psi}{r\Omega}
@@ -111,15 +108,53 @@ a = \frac{u_x}{U_\infty} \quad a' = \frac12 \frac{u_\psi}{r\Omega}
 
 We refer the interested reader to [Branlard2015, sect.4.2] (and refs. therein) for a formal explanation of the relation between the BEM theory and the vortex-induced velocity.
 
+!!! warning
+    Conventions may be confusing. Here we consider that a will be negative for a turbine... and we shouldn't do that. TODO: change sign on a and remind that sign change between quantities for prop and turbines
+
 We account for a yaw angle ``y``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a``. 
 
 The main idea of this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations.
 
 
 !!! note
-    Generally, the yaw angle ``y`` is smaller than the skew angle ``\chi``. See references in [Branlard2016, sect.2.1] for relations between them.
-    !!! danger 
-        TODO: FIG
+    Generally, the yaw angle ``y`` is smaller than the skew angle ``\chi``. See references in [Branlard2016, sect.2.1] for relations between them. If we neglect the tilt angle, we can simply use the relation from Burton's Wind Energy handbook [Ning2015, eq.31]
+    
+    ```math
+    \chi = (0.6 a + 1) \chi_0
+    ```
+
+    :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty``
+    
+    ![](yaw_skew.png)
+
+### Reference frames
+
+Just as a reminder, figures are modified from [Ning2015].
+
+**Rotor related frame:**
+
+![](rotor_frame.png)
+
+We will express the momentum in the direction normal to the rotor plane (after yaw and tilt). That is where our ``x,y,z`` coordinate system is defined. 
+
+
+**Blade related frames:**
+
+![](blade_frame.png)
+
+Note that ``\beta`` is the local coning angle (that accounts both for precone and flapwise bending).
+
+
+
+Given a position on the rotor parametrized by ``x_a,y_a,z_a``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x,y,z``) frame. 
+```math
+\begin{aligned}
+V_x &= ...\\
+V_y &= ...
+\end{aligned}
+```
+<!-- Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep? -->
+
 
 
 ### Rotor mass flow
@@ -142,11 +177,14 @@ where the ``Delta`` is taken between far-field velocities measured normally to t
 ```
 Thus
 ```math
-C_T = 4 (\cos(y) + a) u_x \epsilon_x \cos(\chi)
+C_T = 4 (\cos(y) + a) a \epsilon_x \cos(\chi) F
 ```
 
 !!! warning
-    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 (\cos(y) + \epsilon_x a) u_x \epsilon_x``
+    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 (\cos(y) + \epsilon_x a) u_x \epsilon_x``.
+    It is also different from Glauert's theory, see in [Ning2015]: ``C_T = 4 sqrt{ 1 - a (2 \cos(y) - a)} a F``.
+    It gets however much closer to the propeller-brake/momentum region [Ning2021]
+
 
 
 ### Torque coefficient
@@ -203,11 +241,20 @@ U_{//} &= U_\infty a \epsilon_r
 \end{aligned}
 ```
 
+!!! danger
+    rewrite this as function of velocities with tilt, yaw etc. I miss the component of inflow vel in the // dir
+    caution, this actually also depends on the sweep, coning, etc...?
+    What does really matter here? 
+        1. a is epxressed in the frame before tilt
+        2. given any position on the rotor parametrized by x,y,z,psi,Theta,chi0: I must be able to obtain the velocity in the rotor (xyz) frame. Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep?
+        3. In the end, I will have: Vx,Vy,Vz that I can turn into Ux,Uy,Uz with the induction, and then into U_n, U_t
+
 !!! warning
     Am I missing a factor 2 with a'?
 
 !!! danger
     TODO: write my matrix A
+    double check that I am not crazy when I obtain that 
 
 
 The full expression reads
@@ -219,7 +266,7 @@ U_t &= U_\infty ( \sin(s) \sin(\beta) ( \cos(y) + a) + \sin(s) \cos\beta a \epsi
 \end{aligned}
 ```
 
-In the end, neglecting the sweep angle
+In the end, neglecting the sweep angle (or more precisely, considering sweep only through a shear and no change in direction)
 
 ```math
 \begin{aligned}
@@ -266,27 +313,33 @@ The tangential equilibrium yields
 
 ### Summary of the assumptions
 - we neglect the influence of the bound vortices of the other blades on the current blade. This is valid if all the blade have the same circulation, which is not exactly the case in yaw or with shear.
-- we neglect the influence of the longitudinal vorticity components of the tip cylinder on the velocity measured normal to the disk
-- we still assume the independance of each annular section. Otherwise, the determination of the axial induction at a given radial station would depend on all the other sations, requiring to solve a large system of equations (see also [Branlard2015, sect.4.3]). 
-- the wake geometry is assumed as explained above, or equivalently, the wake vorticity is only shed at the blade root and the blade tip. <!-- The independance of annular sections then involves that each radial station is only influenced by the wake of the corresponding intensity. -->
+- we neglect the influence of the longitudinal vorticity components of the tip cylinder on the velocity measured normal to the disk 
+- we still assume the independance of each annular section (theoretically only valid for no yaw, no cone, and high TSR  [Branlard2015]). Otherwise, the determination of the axial induction at a given radial station would depend on all the other sations, requiring to solve a large system of equations (see also [Branlard2015, sect.4.3]). 
+- the wake geometry is assumed as explained above: no wake expansion, plus the wake vorticity is only shed at the blade root and the blade tip.    The wake expansion could be taken into account by a discretization in the axial direction [Crawford2006] and iterations... But anyway, the wake expansion results in an increase of induction near the tip, which is overtaken by the Prandtl tip correction.
+
 - we neglect the sweep angle in the computation of the normal and tangential velocities (this angle should be small anyway)
+- we neglect the wake redirection by the tilt angle (i.e., the wake is parallel to the ground)
+
+- we neglect the blade flap when evaluating the `epsilon` factors. The reason is that the cylider wake model is centered on the rotor hub, and does not come forward when the blades bend.
 
 ## TODO
 
-- [ ] replace Uinf and ROm by Ux and Uy
-- [ ] Tilt: give the expression of Ux and Uy as in Ning2015a
+- [ ] replace Uinf and ROm by Ux and Uy --> this also means change all the U_inf*cos(y)
+- [ ] Tilt: give the expression of Ux and Uy as in Ning2015a. Caution: wake velocities 
+- [ ] change sign of a everywhere. a is always positive so things should read Uinf(1-a)... or not since it is not like that in Ning2021?
 - [ ] introduce deflection velocities (directly in the residual equation?)
 - [ ] notations: the yaw angle should be \chi_0 or something
 - [ ] smoothly connect to the high induction model. Treat the particular cases ofsome missing velocities
 - [ ] make sure the frames I use (and essentially psi) is consistent
+- [ ] would it be better to pre-evaluate epsilon and look it up during BEM computation, or can we just keep re-evaluating it on the run?
 
 ## References
 
-- [Branlard2016]
-- [Branlard2015]
-- [Crawford2006]
-- [McWilliams2011]
-- [Micallef2016]
-- [Ning2015] 
-- [Ning2020] Ning, A., “Using Blade Element Momentum Methods with Gradient-Based Design Optimization,” Structural and Multidisciplinary Optimization, May 2021.
+- [\[Branlard2016\]](https://doi.org/10.1007/s11044-015-9488-1) Branlard, E. and Gaunaa, M. Cylindrical vortex wake model: skewed cylinder, application to yawed or tilted rotors. Wind Energy, 2016.
+- [\[Branlard2015\]](https://doi.org/10.1002/we.1800) Branlard, E. and Gaunaa, M. Cylindrical vortex wake model: right cylinder. Wind Energy, 2015.
+- [\[Crawford2006\]](https://doi.org/10.1002/we.197) C. Crawford. Re-examining the precepts of the blade element momentum theory for coning rotors. Wind Energy, 9(5):457–478, 2006.
+- [\[McWilliams2011\]](https://doi.org/10.2514/6.2011-540) M. McWilliam, S. Lawton, S. Cline, and C. Crawford. A corrected blade element momentum method for simulating wind turbines in yawed flow. In 49th AIAA Aerospace Sciences Meeting including the New Horizons Forum and Aerospace Exposition, 2011.
+- [\[Micallef2016\]](https://doi.org/10.1115/OMAE2018-78219) D. Micallef and T. Sant. A review of wind turbine yaw aerodynamics. Wind Turbines-Design, Control and Applications, 2016.
+- [\[Ning2015\]](https://doi.org/10.2514/6.2015-0215) A. Ning, G. Hayman, R. Damiani, and J. M. Jonkman. Development and validation of a new blade element momentum skewed-wake model within aerodyn. In 33rd Wind Energy Symposium, 2015.
+- [\[Ning2021\]](https://doi.org/10.1007/s00158-021-02883-6) Ning, A., Using Blade Element Momentum Methods with Gradient-Based Design Optimization, Structural and Multidisciplinary Optimization, May 2021.
   
