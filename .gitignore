@@ -44,7 +44,6 @@ bem.pdf
 inflow.pdf
 velocity-deficit.pdf
 *.idraw
-*.png
 
 # julia
 *.jl.cov
