@@ -8,7 +8,8 @@ makedocs(
         "Quick Start" => "tutorial.md",
         "Guided Examples" => "howto.md",
         "API Reference" => "reference.md",
-        "Theory" => "theory.md"
+        "Theory" => "theory.md",
+        "Wake model" => "wake_model.md"
     ],
     repo="https://github.com/byuflowlab/CCBlade.jl/blob/{commit}{path}#L{line}",
     sitename="CCBlade.jl",
