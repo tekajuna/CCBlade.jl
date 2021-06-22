@@ -111,19 +111,20 @@ We refer the interested reader to [Branlard2015, sect.4.2] (and refs. therein) f
 !!! warning
     Conventions may be confusing. Here we consider that a will be negative for a turbine... and we shouldn't do that. TODO: change sign on a and remind that sign change between quantities for prop and turbines
 
-We account for a yaw angle ``y``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a``. 
+We account for a yaw angle ``\chi_0``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a``. 
 
 The main idea of this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations.
 
 
 !!! note
-    Generally, the yaw angle ``y`` is smaller than the skew angle ``\chi``. See references in [Branlard2016, sect.2.1] for relations between them. If we neglect the tilt angle, we can simply use the relation from Burton's Wind Energy handbook [Ning2015, eq.31]
+    Generally, the yaw angle ``\chi_0`` is smaller than the skew angle ``\chi``. See references in [Branlard2016, sect.2.1] for relations between them. If we neglect the tilt angle, we can simply use the relation from Burton's Wind Energy handbook [Ning2015, eq.31]
     
     ```math
     \chi = (0.6 a + 1) \chi_0
     ```
 
-    :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty``
+    !!! danger
+        :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty``
     
     ![](yaw_skew.png)
 
@@ -153,7 +154,9 @@ V_x &= ...\\
 V_y &= ...
 \end{aligned}
 ```
-<!-- Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep? -->
+
+!!! danger
+    <!-- Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep? -->
 
 
 
@@ -162,7 +165,7 @@ V_y &= ...
 For an anular section ``A_a = 2 \pi r_a dr``:
 
 ```math
-\dot{m} = \rho A_a (U_\infty \cos(y) + u_x ) = \rho U_\infty A_a (\cos(y) + a)
+\dot{m} = \rho A_a (U_\infty \cos(\chi_0) + u_x ) = \rho U_\infty A_a (\cos(\chi_0) + a)
 ```
 
 ### Thrust coefficient
@@ -173,17 +176,17 @@ T = \frac12 \rho U_\infty^2 A_a C_T = \dot{m} \Delta V F
 ```
 where the ``Delta`` is taken between far-field velocities measured normally to the rotor
 ```math
-\Delta V = ( U_\infty \cos(y) - (U_\infty \cos(y) - \gamma_t \cos(\chi)) ) = \gamma_t \cos(\chi) = 2 u_x \epsilon_x \cos(\chi) U_\infty
+\Delta V = ( U_\infty \cos(\chi_0) - (U_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) = \gamma_t \cos(\chi) = 2 u_x \epsilon_x \cos(\chi) U_\infty
 ```
 Thus
 ```math
-C_T = 4 (\cos(y) + a) a \epsilon_x \cos(\chi) F
+C_T = 4 (\cos(\chi_0) + a) a \epsilon_x \cos(\chi) F
 ```
 
 !!! warning
-    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 (\cos(y) + \epsilon_x a) u_x \epsilon_x``.
-    It is also different from Glauert's theory, see in [Ning2015]: ``C_T = 4 sqrt{ 1 - a (2 \cos(y) - a)} a F``.
-    It gets however much closer to the propeller-brake/momentum region [Ning2021]
+    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 (\cos(\chi_0) + \epsilon_x a) u_x \epsilon_x``.
+    It is also different from Glauert's theory, see in [Ning2015]: ``C_T = 4 sqrt{ 1 + a (2 \cos(\chi_0) + a)} a F``.
+    All of them collapse to the the propeller-brake/momentum region formula with no yaw ``C_T = 4 (1+a) a F`` [Ning2021].
 
 
 
@@ -194,7 +197,7 @@ Q = \frac12 \rho U_\infty^2 A_a r_a C_Q = \dot{m} r_a u_\psi F = \dot{m} r_a (2 
 ```
 
 ```math
-C_Q = 4 a' (\cos(y) + a) r_a \Omega / U_\infty
+C_Q = 4 a' (\cos(\chi_0) + a) r_a \Omega / U_\infty
 ```
 
 ### Airfoil aerodynamics
@@ -235,7 +238,7 @@ Similarly, we need to express ``W, U_n, U_t`` as a function of the velocities in
 with
 ```math
 \begin{aligned}
-U_x &= U_\infty(\cos(y) + a) \\
+U_x &= U_\infty(\cos(\chi_0) + a) \\
 U_\psi &= \Omega r_a (1-a') \\
 U_{//} &= U_\infty a \epsilon_r
 \end{aligned}
@@ -261,8 +264,8 @@ The full expression reads
 
 ```math
 \begin{aligned}
-U_n &= U_\infty ( \cos(\beta) ( \cos(y) + a) - \sin\beta a \epsilon_r ) \\
-U_t &= U_\infty ( \sin(s) \sin(\beta) ( \cos(y) + a) + \sin(s) \cos\beta a \epsilon_r ) + r_a\Omega \cos(s) (1-a')
+U_n &= U_\infty ( \cos(\beta) ( \cos(\chi_0) + a) - \sin\beta a \epsilon_r ) \\
+U_t &= U_\infty ( \sin(s) \sin(\beta) ( \cos(\chi_0) + a) + \sin(s) \cos\beta a \epsilon_r ) + r_a\Omega \cos(s) (1-a')
 \end{aligned}
 ```
 
@@ -270,7 +273,7 @@ In the end, neglecting the sweep angle (or more precisely, considering sweep onl
 
 ```math
 \begin{aligned}
-U_n &= U_\infty ( \cos(\beta) ( \cos(y) + a) - \sin\beta a \epsilon_r ) \\
+U_n &= U_\infty ( \cos(\beta) ( \cos(\chi_0) + a) - \sin\beta a \epsilon_r ) \\
 U_t &= r_a \Omega (1-a')
 \end{aligned}
 ```
@@ -289,12 +292,12 @@ Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 We express the axial momentum
 ...
 ```math
-\frac{(\cos(y) + a) a}{(\cos\beta (\cos(y) + a) - \sin\beta a \epsilon_r)^2} = \frac{c c_1}{2\pi r_a \epsilon_x \cos(\chi) F}
+\frac{(\cos(\chi_0) + a) a}{(\cos\beta (\cos(\chi_0) + a) - \sin\beta a \epsilon_r)^2} = \frac{c c_1}{2\pi r_a \epsilon_x \cos(\chi) F}
 ```
 
 We can solve for ``a``.
 ```math
-a = \cos(y) \frac{... \pm \sqrt{...} }{...} 
+a = \cos(\chi_0) \frac{... \pm \sqrt{...} }{...} 
 ```
 
 The tangential equilibrium yields
@@ -324,11 +327,10 @@ The tangential equilibrium yields
 
 ## TODO
 
-- [ ] replace Uinf and ROm by Ux and Uy --> this also means change all the U_inf*cos(y)
+- [ ] replace Uinf and ROm by Ux and Uy --> this also means change all the U_inf*cos(\chi_0)
 - [ ] Tilt: give the expression of Ux and Uy as in Ning2015a. Caution: wake velocities 
 - [ ] change sign of a everywhere. a is always positive so things should read Uinf(1-a)... or not since it is not like that in Ning2021?
 - [ ] introduce deflection velocities (directly in the residual equation?)
-- [ ] notations: the yaw angle should be \chi_0 or something
 - [ ] smoothly connect to the high induction model. Treat the particular cases ofsome missing velocities
 - [ ] make sure the frames I use (and essentially psi) is consistent
 - [ ] would it be better to pre-evaluate epsilon and look it up during BEM computation, or can we just keep re-evaluating it on the run?
