@@ -60,16 +60,16 @@ For the sequel, it will be convenient to define `epsilon factors`. The conventio
 ```math
 \begin{aligned}
 u_x \epsilon_x &= \gamma_t / 2 \\
-u_x \epsilon_r &= u_r \\
-u_x \epsilon_\psi &= u_\psi
+u_\psi \epsilon_\psi &= u_{\psi_2} / 2 \\
+u_r = \epsilon_r u_x 
 \end{aligned}
 ```
 such that
 ```math
 \begin{aligned}
 \epsilon_x &= 1 / (2 I_x) \\
-\epsilon_r &= 4 I_x I_r \\
-\epsilon_\psi &= 4 I_x I_\psi
+\epsilon_\psi &= ???(I_\psi) \\ 
+\epsilon_r &= 4 I_x I_r 
 \end{aligned}
 ```
 
@@ -103,17 +103,17 @@ such that
 We re-develop the BEM equations following the same logic as in [Ning2021], but for the general case of a turbine with yaw and non-straight/preconed blades. We make use of the definitions of the epsilon factors, and the standard definition of the induction factors:
 
 ```math
-a = \frac{u_x}{U_\infty} \quad a' = \frac12 \frac{u_\psi}{r\Omega}
+a = \frac{u_x}{V_x} \quad a' = \frac12 \frac{u_\psi}{V_y}
 ```
 
 We refer the interested reader to [Branlard2015, sect.4.2] (and refs. therein) for a formal explanation of the relation between the BEM theory and the vortex-induced velocity.
 
 !!! warning
-    Conventions may be confusing. Here we consider that a will be negative for a turbine... and we shouldn't do that. TODO: change sign on a and remind that sign change between quantities for prop and turbines
+    The sign conventions used here may depend on the type of operation (turbine/propeller). We follow the same definitions as in [Ning2021]. 
 
-We account for a yaw angle ``\chi_0``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a``. 
+We account for a yaw angle ``\chi_0``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a \approx z_a``. 
 
-The main idea of this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations.
+The main idea of this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations. **The axial momentum (both axial and angular) is expressed in the direction normal to the rotor plane** (see reference frames hereafter).
 
 
 !!! note
@@ -124,19 +124,19 @@ The main idea of this development is to relate the local forces on the blades (w
     ```
 
     !!! danger
-        :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty``
+        :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty`` in that formula
     
     ![](yaw_skew.png)
 
 ### Reference frames
 
-Just as a reminder, figures are modified from [Ning2015].
+Figures are modified from [Ning2015].
 
 **Rotor related frame:**
 
 ![](rotor_frame.png)
 
-We will express the momentum in the direction normal to the rotor plane (after yaw and tilt). That is where our ``x,y,z`` coordinate system is defined. 
+We will express the momentum in the direction normal to the rotor plane (after yaw and tilt, **before coning and sweep**). That is where our ``x,y,z`` coordinate system is defined. 
 
 
 **Blade related frames:**
@@ -150,37 +150,51 @@ Note that ``\beta`` is the local coning angle (that accounts both for precone an
 Given a position on the rotor parametrized by ``x_a,y_a,z_a``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x,y,z``) frame. 
 ```math
 \begin{aligned}
-V_x &= ...\\
-V_y &= ...
+V_x &= U_\infty \cos(\chi_0) \cos(\Theta) \\
+V_y &= U_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega z_a \\
+V_z &= U_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) )
 \end{aligned}
 ```
+This is essentially Eq.28 in [Ning2015], without precone (since we are interested in velocities in the rotor plane). 
 
-!!! danger
-    <!-- Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep? -->
+!!! warning
+    Theoretically, ``y_a`` should be accounted for in the above expression since it may introduce components of rotational velocity in both ``V_y,V_z``. We choose to neglect that effect since the sweep deflection is likely small.
 
+Note that in the basic BEM, induction factors are defined with respect to ``U_infty`` and ``R\Omega`` respectively.
+Since all unsteady effects are here neglected, we express the BEM equations by assuming we can replace these with the instantaneous velocities ``V_x,V_y``.
 
 
 ### Rotor mass flow
 
-For an anular section ``A_a = 2 \pi r_a dr``:
+For an anular section ``A_a = 2 \pi r_a dr``, assuming local conditions (velocities) apply to the entire annulus:
 
 ```math
-\dot{m} = \rho A_a (U_\infty \cos(\chi_0) + u_x ) = \rho U_\infty A_a (\cos(\chi_0) + a)
+\dot{m} = \rho A_a (V_x + u_x ) = \rho V_x A_a (1 + a)
 ```
+
+!!! note
+    Some authors keep the definition of ``a = \frac{u_x}{U_\infty}``, which leads to 
+    ```math
+    \dot{m} = \rho A_a U_\infty (\cos(\chi_0) \cos(\Theta) + a )
+    ```
+    and similar expressions in the sequel. 
+
+    !!! warning
+        Is there really a reason to favor one or the other approach?    
 
 ### Thrust coefficient
 
 With the Prandtl loss function ``F``:
 ```math
-T = \frac12 \rho U_\infty^2 A_a C_T = \dot{m} \Delta V F
+T = \frac12 \rho V_x^2 A_a C_T = \dot{m} \Delta V F
 ```
-where the ``Delta`` is taken between far-field velocities measured normally to the rotor
+where the ``\Delta`` is taken between far-field velocities measured normally to the rotor plane
 ```math
-\Delta V = ( U_\infty \cos(\chi_0) - (U_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) = \gamma_t \cos(\chi) = 2 u_x \epsilon_x \cos(\chi) U_\infty
+\Delta V = ( U_\infty \cos(\chi_0) - (U_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) \cos(\Theta) = \gamma_t \cos(\chi) \cos(\Theta) = 2 u_x \epsilon_x \cos(\chi) \cos(\Theta) U_\infty
 ```
 Thus
 ```math
-C_T = 4 (\cos(\chi_0) + a) a \epsilon_x \cos(\chi) F
+C_T = 4 a (1 + a) \epsilon_x \cos(\chi) \cos(\Theta) F
 ```
 
 !!! warning
@@ -193,19 +207,15 @@ C_T = 4 (\cos(\chi_0) + a) a \epsilon_x \cos(\chi) F
 ### Torque coefficient
 
 ```math
-Q = \frac12 \rho U_\infty^2 A_a r_a C_Q = \dot{m} r_a u_\psi F = \dot{m} r_a (2 a') (r_a \Omega) F
+Q = \frac12 \rho V_x^2 A_a r_a C_Q = \dot{m} r_a u_{\psi_2} F = \dot{m} r_a 2 u_\psi \epsilon_\psi F
 ```
 
 ```math
-C_Q = 4 a' (\cos(\chi_0) + a) r_a \Omega / U_\infty
+C_Q = 4 a' (1 + a) \epsilon_\psi V_y / V_x F
 ```
-
 ### Airfoil aerodynamics
 
-The 2-D aerodynamics has to be expressed in a plane normal to the blade axis. Note that the blade is allowed to deflect, and may have a local coning and sweep angle.
-
-!!! danger
-    TODO: fig of the plane normal to the blade: r,ra,s,beta
+The 2-D aerodynamics has to be expressed in a plane normal to the blade axis, rotated by the angle ``\beta`` and ``s`` with respect to the rotor reference plane. In fact, the blade is allowed to deflect, and may have a local coning and sweep angle. The forces on the airfoil are transferred to the rotor reference plane so as to express the axial and angular momentum in that reference plane.
 
 ![](turbine_deflected.png)
 
@@ -214,6 +224,10 @@ By definition, ``\tan(\phi) = \frac{U_n}{U_t}`` that we can rewrite
 ```math
 \frac{ \sin(\phi) }{ U_n } - \frac{ \cos(\phi) }{ U_t } = 0
 ```
+
+We need two things to happen: obtain the velocities ``U_n,U_t`` in the local blade frame, and transform the forces expressed in the local blade frame to the rotor frame. 
+
+![](blade_vs_rotor.png)
 
 The local 2-D aerodynamics  yields forces parallel to the normal and tangential direction:
 ```math
@@ -229,52 +243,43 @@ f_x &= \frac12 \rho W^2 c c_1(c_n,c_t,\beta,s) dr \\
 f_\psi &= \frac12 \rho W^2 c c_2(c_n,c_t,\beta,s) dr
 \end{aligned}
 ```
-where ``c_1,c_2`` are coordinate transformations.
+where ``c_1,c_2`` are coordinate transformations (blade to rotor).
 
 Similarly, we need to express ``W, U_n, U_t`` as a function of the velocities in the rotor c.s.:
 ```math
-[U_n, U_t, U_{//}]^T = A [U_x, U_\psi, U_r]^T
+[U_n, U_t, U_r]^T = A [V_x (1+a), V_y (1-a'), V_z + V_x a \epsilon_r]^T
 ```
-with
-```math
-\begin{aligned}
-U_x &= U_\infty(\cos(\chi_0) + a) \\
-U_\psi &= \Omega r_a (1-a') \\
-U_{//} &= U_\infty a \epsilon_r
-\end{aligned}
-```
-
-!!! danger
-    rewrite this as function of velocities with tilt, yaw etc. I miss the component of inflow vel in the // dir
-    caution, this actually also depends on the sweep, coning, etc...?
-    What does really matter here? 
-        1. a is epxressed in the frame before tilt
-        2. given any position on the rotor parametrized by x,y,z,psi,Theta,chi0: I must be able to obtain the velocity in the rotor (xyz) frame. Similar to eq28 in Ning2015 (the radial component missing), but with 0 coning and with the possible shift in x,y,z that will affect r_a and the sweep is gonna make it even more messy. Forget about sweep?
-        3. In the end, I will have: Vx,Vy,Vz that I can turn into Ux,Uy,Uz with the induction, and then into U_n, U_t
-
-!!! warning
-    Am I missing a factor 2 with a'?
 
 !!! danger
     TODO: write my matrix A
-    double check that I am not crazy when I obtain that 
+
 
 
 The full expression reads
 
 ```math
 \begin{aligned}
-U_n &= U_\infty ( \cos(\beta) ( \cos(\chi_0) + a) - \sin\beta a \epsilon_r ) \\
-U_t &= U_\infty ( \sin(s) \sin(\beta) ( \cos(\chi_0) + a) + \sin(s) \cos\beta a \epsilon_r ) + r_a\Omega \cos(s) (1-a')
+U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
+U_t &= \sin s \sin\beta V_x ( 1 + a) + \cos(s)  V_y  (1-a') + \sin s  \cos\beta ( V_z + V_x a \epsilon_r)  
 \end{aligned}
 ```
+
+!!! note
+    What we obtain at this stage is a system where we can hardly obtain an expression of ``U_n`` or ``U_t`` as a dunction of only ``a`` or ``a'``. This will prevent the expression of the residual under the form of a single equation, as a function of ``\phi``. However, we notice that if we neglect the sweep angle in this coordinate transformation, we can achieve decoupling. This is the main reason for invoking the previously mentioned hypothesis of sweep though shear.
+
+    !!! warning 
+        Neglecting sweep is necessary in the velocity transformation, but not in ``c_1,c_2``. For consistency though, we also neglect it there.
+
+    !!! danger
+        Afterwards, I realize that this assumption might even not be necessary...
+
 
 In the end, neglecting the sweep angle (or more precisely, considering sweep only through a shear and no change in direction)
 
 ```math
 \begin{aligned}
-U_n &= U_\infty ( \cos(\beta) ( \cos(\chi_0) + a) - \sin\beta a \epsilon_r ) \\
-U_t &= r_a \Omega (1-a')
+U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
+U_t &= V_y  (1-a') 
 \end{aligned}
 ```
 
@@ -292,12 +297,12 @@ Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 We express the axial momentum
 ...
 ```math
-\frac{(\cos(\chi_0) + a) a}{(\cos\beta (\cos(\chi_0) + a) - \sin\beta a \epsilon_r)^2} = \frac{c c_1}{2\pi r_a \epsilon_x \cos(\chi) F}
+\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta V_x - \sin \beta \epsilon_r) a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a}  
 ```
 
 We can solve for ``a``.
 ```math
-a = \cos(\chi_0) \frac{... \pm \sqrt{...} }{...} 
+a =  \frac{... \pm \sqrt{...} }{...} 
 ```
 
 The tangential equilibrium yields
@@ -305,14 +310,6 @@ The tangential equilibrium yields
 ```math
 \frac{a'}{1-a'} = ... (a,y,\phi,...)
 ```
-
-!!! note
-    We never used ``\epslon_\psi`` so far. One possibility would be to replace the last equation (tangential equilibrium) with 
-    ```math
-    a' = \epsilon_\psi \frac{u_x}{r_a\Omega} = a \epsilon_\psi \frac{U_\infty}{r_a\Omega}
-    ```
-    This might not be more accurate, though.
-
 
 ### Summary of the assumptions
 - we neglect the influence of the bound vortices of the other blades on the current blade. This is valid if all the blade have the same circulation, which is not exactly the case in yaw or with shear.
@@ -327,9 +324,10 @@ The tangential equilibrium yields
 
 ## TODO
 
-- [ ] replace Uinf and ROm by Ux and Uy --> this also means change all the U_inf*cos(\chi_0)
-- [ ] Tilt: give the expression of Ux and Uy as in Ning2015a. Caution: wake velocities 
+- [ ] be more explicit on the computation of epsilon: relation to gamma_l, gamma_l and Gamma_tot
 - [ ] change sign of a everywhere. a is always positive so things should read Uinf(1-a)... or not since it is not like that in Ning2021?
+- [ ] uniformity in notations: U/V
+- [ ] shall we dfine a=ux/Uinf or a=ux/Ux ?
 - [ ] introduce deflection velocities (directly in the residual equation?)
 - [ ] smoothly connect to the high induction model. Treat the particular cases ofsome missing velocities
 - [ ] make sure the frames I use (and essentially psi) is consistent
