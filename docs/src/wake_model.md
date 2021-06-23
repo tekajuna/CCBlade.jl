@@ -25,7 +25,7 @@ To include yaw, we allow the wake to be skewed by an angle ``\chi`` with respect
 In those conditions, we can compute the velocity induced by each of the vortex component (for a given ``\gamma_t``) from each object on a point located on the rotor disk.  This comes down to numerically integrate [Branlard2016, eq.5-8], which we do with Gauss-Legendre quadrature.
 
 
-For example, we set ``\chi = 30 ^\circle``, ``\gamma_t = -1``. The axial velocity (z) induced by the tangential component of the outer vorticity cylinder (t) is ``u_{z,t}``:
+For example, we set ``\chi = 30^o``, ``\gamma_t = -1``. The axial velocity (z) induced by the tangential component of the outer vorticity cylinder (t) is ``u_{z,t}``:
 
 ![](sampl_uzt.png)
 
@@ -34,7 +34,7 @@ The radial and tangential velocities induced by the tangential component of the 
 
 ![](sampl_urt.png)
 
-Similarly, the axial velocity induced by the root vortex ``u_{z,r}``:
+Similarly, the axial velocity induced by the root vortex ``u_{z,r}`` (assuming ``\Gamma_{tot} = 1``):
 
 ![](sampl_uzr.png)
 
@@ -51,7 +51,7 @@ Hence, we showed that the induced veloctities at the rotor can be expressed as
 \begin{aligned}
 u_x &= I_x \gamma_t \\
 u_r &= I_r \gamma_t \\
-u_\psi &= I_\psi \gamma_t
+u_\psi &= I_\psi \gamma_t 
 \end{aligned}
 ```
 where the ``I`` factors depend on the above integrals.
@@ -60,7 +60,7 @@ For the sequel, it will be convenient to define `epsilon factors`. The conventio
 ```math
 \begin{aligned}
 u_x \epsilon_x &= \gamma_t / 2 \\
-u_\psi \epsilon_\psi &= u_{\psi_2} / 2 \\
+u_\psi \epsilon_\psi &= u_{\psi_2} / 2 \\ 
 u_r = \epsilon_r u_x 
 \end{aligned}
 ```
@@ -77,10 +77,10 @@ such that
     **Relation to other skewed wake models**
 
     As noted in [Branlard2016], the cylinder wake model can be seen as a generalization of other models that have been proposed to treat yaw.
-    The relation between these models and the current one is established by noticing that the axial inducation has the form of the model proposed by Glauert:
+    The relation between these models and the current one is established by noticing that the axial induced velocity has the form of the model proposed by Glauert:
 
     ```math
-    a = \gamma_t / 2 (1 + K \sin\psi)
+    u_x = \frac{\gamma_t}{2} (1 + K \sin\psi)
     ```
     where ``K`` has an expression that depends on the model.
 
@@ -95,7 +95,8 @@ such that
     although some authors proposed to use a factor ``15\pi/64`` instead (see [Ning2015]).
     Other models can be found in the litterature (see e.g. [Micallef2016])
 
-    In the present model, ``a`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} / V_\infty = \gamma_t / 2 (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
+    In the present model, ``u_x`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} = \frac{\gamma_t}{2} (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
+
 
 
 ## Adapted BEM equations
@@ -193,7 +194,7 @@ T = \frac12 \rho V_x^2 A_a C_T = \dot{m} \Delta V F
 ```
 where the ``\Delta`` is taken between far-field velocities measured normally to the rotor plane
 ```math
-\Delta V = ( V_\infty \cos(\chi_0) - (V_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) \cos(\Theta) = \gamma_t \cos(\chi) \cos(\Theta) = 2 u_x \epsilon_x \cos(\chi) \cos(\Theta) V_\infty
+\Delta V = ( V_\infty \cos(\chi_0) - (V_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) \cos(\Theta) = \gamma_t \cos(\chi) \cos(\Theta) = 2 u_x \epsilon_x \cos(\chi) \cos(\Theta)
 ```
 Thus,
 ```math
@@ -209,6 +210,8 @@ C_T = 4 a (1 + a) \epsilon_x \cos(\chi) \cos(\Theta) F
 
 ### Torque coefficient
 
+Recalling that ``u_{\psi_2}`` is the far field tangential velocity in the cylinder,
+
 ```math
 Q = \frac12 \rho V_x^2 A_a r_a C_Q = \dot{m} r_a u_{\psi_2} F = \dot{m} r_a 2 u_\psi \epsilon_\psi F
 ```
@@ -216,6 +219,14 @@ Q = \frac12 \rho V_x^2 A_a r_a C_Q = \dot{m} r_a u_{\psi_2} F = \dot{m} r_a 2 u_
 ```math
 C_Q = 4 a' (1 + a) \epsilon_\psi V_y / V_x F
 ```
+
+!!! note
+    The definition of ``u_{\psi_2}`` is somewhat unclear. Indeed, with the cylinder wake model, the far-wake tangential velocity depends on ``r`` (which is not the case for the axial velocity). In practice, this affects the way ``\epsilon_\psi`` is computed:
+    ```math
+    \epsilon_\psi(r,\psi,\gamma_t,\gamma_l,\gamma_r) = frac{1}{2} \frac{ u_{\psi_2}(r,\gamma_t,\gamma_l,\gamma_r) }{u_\psi(r,\psi,\gamma_t,\gamma_l,\gamma_r)}
+    ```
+    Also recalling that ``\gamma_l,\gamma_r`` can be expressed as a function of ``\gamma_t``, ``u_{\psi_2}`` and ``u_{\psi}`` are linearly dependent on ``\gamma_t``, the final expression reduces to ``\epsilon_\psi(r,\psi)``. 
+
 ### Airfoil aerodynamics
 
 The 2-D aerodynamics has to be expressed in a plane normal to the blade axis, rotated by the angle ``\beta`` and ``s`` with respect to the rotor reference plane. In fact, the blade is allowed to deflect, and may have a local coning and sweep angle. The forces on the airfoil are transferred to the rotor reference plane so as to express the axial and angular momentum in that reference plane.
@@ -243,7 +254,7 @@ and we need to express these forces in the coordinate system associated with the
 ```math
 \begin{aligned}
 f_x &= \frac12 \rho W^2 c c_1(c_n,c_t,\beta,s) dr \\
-f_\psi &= \frac12 \rho W^2 c c_2(c_n,c_t,\beta,s) dr
+f_y &= \frac12 \rho W^2 c c_2(c_n,c_t,\beta,s) dr
 \end{aligned}
 ```
 where ``c_1,c_2`` are coordinate transformations (blade to rotor).
@@ -255,11 +266,11 @@ Similarly, we need to express ``W, U_n, U_t`` as a function of the velocities in
 where A is the rotation matrix between the rotor frame and the local blade frame (that includes coning and sweep)
 
 ```math
-A = \begin{matrix}
+A = \left(\begin{matrix}
 \cos \beta          & 0         & -\sin \beta\\
 \sin s \sin \beta   & \cos s    & \sin s \cos \beta \\
 \cos s \sin \beta   & - \sin s  & \cos s \cos \beta
-\end{matrix}
+\end{matrix}\right)
 ```
 
 The full expression of the total velocities in the airfoil frame reads
@@ -278,7 +289,7 @@ U_t &= \sin s \sin\beta V_x ( 1 + a) + \cos(s)  V_y  (1-a') + \sin s  \cos\beta 
         Neglecting sweep is "necessary" in the velocity transformation, but not in ``c_1,c_2``. For consistency though, we also neglect it there.
 
     !!! danger
-        Afterwards, I realize that this assumption might even not be necessary...
+        Afterwards, I realize that this assumption might even not be necessary... ``U_n`` always only depends on ``a``, which means that the axial momentum can indeed be expressed only as a function of ``a``. Solving it for ``a``, we can then use that value in the angular momentum which will depend on ``a,a'``, and solve for ``a'``.
 
 
 In the end, neglecting the sweep angle (or more precisely, considering sweep only through a shear and no change in direction)
@@ -289,6 +300,18 @@ U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
 U_t &= V_y  (1-a') 
 \end{aligned}
 ```
+
+!!! note
+    With unsteady flexible blades, the displacement velocity of the blades expressed in the airfoil frame, ``v_n, v_t``, may be added directly here:
+
+    ```math
+    \begin{aligned}
+    U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) - v_n \\
+    U_t &= V_y  (1-a') - v_t
+    \end{aligned}
+    ```
+
+    This only slightly modifies the BEM equations hereunder.
 
 
 ### BEM equations
@@ -301,13 +324,12 @@ R(\phi) = \frac{ \sin(\phi) }{ U_n } - \frac{ \cos(\phi) }{ U_t } = 0
 
 Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 
-We express the axial momentum
-...
+We equate the thrust coefficient deduced from axial momentum and from the airfoil aerodynamics:
 ```math
-\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta V_x - \sin \beta \epsilon_r) a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a} \overset{\Delta}{=} \kappa
+\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta - \sin \beta \epsilon_r) V_x a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a} \overset{\Delta}{=} \kappa
 ```
 
-We can then solve for ``a`` (thank you Wolfram):
+We can then solve for ``a``:
 
 ```math
 \frac{a(1+a)}{(b_1 + b_2 a)^2} = \kappa 
@@ -342,9 +364,7 @@ that we can easily invert for ``a'`` "as usual".
 
 - [ ] be more explicit on the computation of epsilon: relation to gamma_l, gamma_l and Gamma_tot
 - [ ] change sign of a everywhere. a is always positive so things should read Uinf(1-a)... or not since it is not like that in Ning2021?
-- [ ] uniformity in notations: U/V
 - [ ] shall we dfine a=ux/Uinf or a=ux/Ux ?
-- [ ] introduce deflection velocities (directly in the residual equation?)
 - [ ] smoothly connect to the high induction model. Treat the particular cases ofsome missing velocities
 - [ ] make sure the frames I use (and essentially psi) is consistent
 - [ ] would it be better to pre-evaluate epsilon and look it up during BEM computation, or can we just keep re-evaluating it on the run?
