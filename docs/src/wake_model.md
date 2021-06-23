@@ -95,7 +95,7 @@ such that
     although some authors proposed to use a factor ``15\pi/64`` instead (see [Ning2015]).
     Other models can be found in the litterature (see e.g. [Micallef2016])
 
-    In the present model, ``a`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} / U_\infty = \gamma_t / 2 (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
+    In the present model, ``a`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} / V_\infty = \gamma_t / 2 (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
 
 
 ## Adapted BEM equations
@@ -124,9 +124,12 @@ The main idea of this development is to relate the local forces on the blades (w
     ```
 
     !!! danger
-        :warning: should clarify if ``a = u_x/U_\infty`` or ``a = u_{x_0}/U_\infty`` in that formula
+        :warning: should clarify if ``a = u_x/V_\infty`` or ``a = u_{x_0}/V_\infty`` in that formula
     
     ![](yaw_skew.png)
+
+!!! note
+    Notations: ``V`` are external velocities (from the inflow and the rotation); ``u`` are wake-induced velocities; ``U`` are the sum of ``V`` and ``U``.
 
 ### Reference frames
 
@@ -150,9 +153,9 @@ Note that ``\beta`` is the local coning angle (that accounts both for precone an
 Given a position on the rotor parametrized by ``x_a,y_a,z_a``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x,y,z``) frame. 
 ```math
 \begin{aligned}
-V_x &= U_\infty \cos(\chi_0) \cos(\Theta) \\
-V_y &= U_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega z_a \\
-V_z &= U_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) )
+V_x &= V_\infty \cos(\chi_0) \cos(\Theta) \\
+V_y &= V_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega z_a \\
+V_z &= V_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) )
 \end{aligned}
 ```
 This is essentially Eq.28 in [Ning2015], without precone (since we are interested in velocities in the rotor plane). 
@@ -160,7 +163,7 @@ This is essentially Eq.28 in [Ning2015], without precone (since we are intereste
 !!! warning
     Theoretically, ``y_a`` should be accounted for in the above expression since it may introduce components of rotational velocity in both ``V_y,V_z``. We choose to neglect that effect since the sweep deflection is likely small.
 
-Note that in the basic BEM, induction factors are defined with respect to ``U_infty`` and ``R\Omega`` respectively.
+Note that in the basic BEM, induction factors are defined with respect to ``V_infty`` and ``R\Omega`` respectively.
 Since all unsteady effects are here neglected, we express the BEM equations by assuming we can replace these with the instantaneous velocities ``V_x,V_y``.
 
 
@@ -173,9 +176,9 @@ For an anular section ``A_a = 2 \pi r_a dr``, assuming local conditions (velocit
 ```
 
 !!! note
-    Some authors keep the definition of ``a = \frac{u_x}{U_\infty}``, which leads to 
+    Some authors keep the definition of ``a = \frac{u_x}{V_\infty}``, which leads to 
     ```math
-    \dot{m} = \rho A_a U_\infty (\cos(\chi_0) \cos(\Theta) + a )
+    \dot{m} = \rho A_a V_\infty (\cos(\chi_0) \cos(\Theta) + a )
     ```
     and similar expressions in the sequel. 
 
@@ -190,15 +193,15 @@ T = \frac12 \rho V_x^2 A_a C_T = \dot{m} \Delta V F
 ```
 where the ``\Delta`` is taken between far-field velocities measured normally to the rotor plane
 ```math
-\Delta V = ( U_\infty \cos(\chi_0) - (U_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) \cos(\Theta) = \gamma_t \cos(\chi) \cos(\Theta) = 2 u_x \epsilon_x \cos(\chi) \cos(\Theta) U_\infty
+\Delta V = ( V_\infty \cos(\chi_0) - (V_\infty \cos(\chi_0) - \gamma_t \cos(\chi)) ) \cos(\Theta) = \gamma_t \cos(\chi) \cos(\Theta) = 2 u_x \epsilon_x \cos(\chi) \cos(\Theta) V_\infty
 ```
-Thus
+Thus,
 ```math
 C_T = 4 a (1 + a) \epsilon_x \cos(\chi) \cos(\Theta) F
 ```
 
 !!! warning
-    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 (\cos(\chi_0) + \epsilon_x a) u_x \epsilon_x``.
+    The latter expression is different from that proposed in [McWilliams2011]: ``C_T = 4 a (\cos(\chi_0) + \epsilon_x a)  \epsilon_x``. 
     It is also different from Glauert's theory, see in [Ning2015]: ``C_T = 4 sqrt{ 1 + a (2 \cos(\chi_0) + a)} a F``.
     All of them collapse to the the propeller-brake/momentum region formula with no yaw ``C_T = 4 (1+a) a F`` [Ning2021].
 
@@ -247,28 +250,32 @@ where ``c_1,c_2`` are coordinate transformations (blade to rotor).
 
 Similarly, we need to express ``W, U_n, U_t`` as a function of the velocities in the rotor c.s.:
 ```math
-[U_n, U_t, U_r]^T = A [V_x (1+a), V_y (1-a'), V_z + V_x a \epsilon_r]^T
+[U_n, U_t, U_r]^T = A [U_x, U_y, U_z ]^T = A [V_x (1+a), V_y (1-a'), V_z + V_x a \epsilon_r]^T
+```
+where A is the rotation matrix between the rotor frame and the local blade frame (that includes coning and sweep)
+
+```math
+A = \begin{matrix}
+\cos \beta          & 0         & -\sin \beta\\
+\sin s \sin \beta   & \cos s    & \sin s \cos \beta \\
+\cos s \sin \beta   & - \sin s  & \cos s \cos \beta
+\end{matrix}
 ```
 
-!!! danger
-    TODO: write my matrix A
-
-
-
-The full expression reads
+The full expression of the total velocities in the airfoil frame reads
 
 ```math
 \begin{aligned}
-U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
+U_n &= \cos\beta V_x (1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
 U_t &= \sin s \sin\beta V_x ( 1 + a) + \cos(s)  V_y  (1-a') + \sin s  \cos\beta ( V_z + V_x a \epsilon_r)  
 \end{aligned}
 ```
 
 !!! note
-    What we obtain at this stage is a system where we can hardly obtain an expression of ``U_n`` or ``U_t`` as a dunction of only ``a`` or ``a'``. This will prevent the expression of the residual under the form of a single equation, as a function of ``\phi``. However, we notice that if we neglect the sweep angle in this coordinate transformation, we can achieve decoupling. This is the main reason for invoking the previously mentioned hypothesis of sweep though shear.
+    What we obtain at this stage is a system where we can hardly obtain an expression of ``U_n`` or ``U_t`` as a function of only ``a`` or ``a'``. This will prevent the expression of the residual under the form of a single equation, as a function of ``\phi``. However, we notice that if we neglect the sweep angle in this coordinate transformation, we can achieve decoupling. This is the main reason for invoking the previously mentioned hypothesis of sweep though shear.
 
     !!! warning 
-        Neglecting sweep is necessary in the velocity transformation, but not in ``c_1,c_2``. For consistency though, we also neglect it there.
+        Neglecting sweep is "necessary" in the velocity transformation, but not in ``c_1,c_2``. For consistency though, we also neglect it there.
 
     !!! danger
         Afterwards, I realize that this assumption might even not be necessary...
