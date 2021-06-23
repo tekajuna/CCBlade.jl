@@ -297,19 +297,28 @@ Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 We express the axial momentum
 ...
 ```math
-\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta V_x - \sin \beta \epsilon_r) a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a}  
+\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta V_x - \sin \beta \epsilon_r) a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a} \overset{\Delta}{=} \kappa
 ```
 
-We can solve for ``a``.
+We can then solve for ``a`` (thank you Wolfram):
+
 ```math
-a =  \frac{... \pm \sqrt{...} }{...} 
+\frac{a(1+a)}{(b_1 + b_2 a)^2} = \kappa 
 ```
 
-The tangential equilibrium yields
+```math
+a = \frac{-2 b_1 b_2 \kappa +1 \pm \sqrt{4 b_1^2 \kappa - b_1 b_2 \kappa + 1}}{2(b_2^2 \kappa -1)} \quad \textrm{with} \pm b_2 \sqrt{4 b_1^2 \kappa - b_1 b_2 \kappa + 1} - 2 b_1 + b_2 \ne 0
+```
+
+!!! warning
+    There are two roots to this equation. Hopefully, one can be ruled out from physics considerations. This has to be verified, though.
+
+Knowing ``a``, the tangential equilibrium yields
 ...
 ```math
-\frac{a'}{1-a'} = ... (a,y,\phi,...)
+\frac{a'}{1-a'} = \frac{b_1 + b_2 a}{V_x (1+a)}  \underbrace{\frac{1}{4\epsilon_\psi F \sin\phi \cos\phi} \frac{c c_2} {2\pi z_a} }_{\overset{\Delta}{=} \kappa'}
 ```
+that we can easily invert for ``a'`` "as usual".
 
 ### Summary of the assumptions
 - we neglect the influence of the bound vortices of the other blades on the current blade. This is valid if all the blade have the same circulation, which is not exactly the case in yaw or with shear.
@@ -317,10 +326,10 @@ The tangential equilibrium yields
 - we still assume the independance of each annular section (theoretically only valid for no yaw, no cone, and high TSR  [Branlard2015]). Otherwise, the determination of the axial induction at a given radial station would depend on all the other sations, requiring to solve a large system of equations (see also [Branlard2015, sect.4.3]). 
 - the wake geometry is assumed as explained above: no wake expansion, plus the wake vorticity is only shed at the blade root and the blade tip.    The wake expansion could be taken into account by a discretization in the axial direction [Crawford2006] and iterations... But anyway, the wake expansion results in an increase of induction near the tip, which is overtaken by the Prandtl tip correction.
 
-- we neglect the sweep angle in the computation of the normal and tangential velocities (this angle should be small anyway)
+- we neglect the sweep angle in the computation of the normal and tangential velocities (this angle should be small anyway) *This assumption might be unnecessary.*
 - we neglect the wake redirection by the tilt angle (i.e., the wake is parallel to the ground)
 
-- we neglect the blade flap when evaluating the `epsilon` factors. The reason is that the cylider wake model is centered on the rotor hub, and does not come forward when the blades bend.
+- we neglect the blade flap/coning angle when evaluating the `epsilon` factors. The reason is that the cylider wake model is centered on the rotor hub, and does not come forward when the blades bend.
 
 ## TODO
 
