@@ -29,7 +29,7 @@ eps = 1e-3 #small tolerance to avoid evaluating r=R
 # init, span over a radius, fore-aft diameter if psi = 0
 rr = range(-R-eps,R+eps,length=101)
 
-ut = CCBlade.eval_ut(x, ψ, rr, χ, R) .* γt
+ut = CCBlade.eval_ut(x, ψ, rr, R, χ) .* γt
 
 #--  approximate formulation
 Kzt_approx = rr./R .* tan(χ/2) #another approx exist, only valid on psi=0,z=0
@@ -45,7 +45,7 @@ urt_approx = tan(χ/2) .* cos(ψ) .* uzt_approx - uz0 .* Ft .* sec(χ/2)^2
 uψt_approx = -tan(χ/2) .* sin(ψ) .* uzt_approx
 
 ut_approx2 = zeros(3,length(rr))
-CCBlade.eval_ut_approx!(ut_approx2, x, ψ, rr, χ, R, CCBlade.BranlardApprox())
+CCBlade.eval_ut_approx!(ut_approx2, x, ψ, rr, R, χ, CCBlade.BranlardApprox())
 ut_approx2.*=γt
 
 for j = 1:4:101
@@ -76,9 +76,9 @@ plot(rr,ut_approx2[3,:])
 rr = range(0,R-eps,length=17)
 ψψ = range(0,2*pi,length=13)'
 
-ut = CCBlade.eval_ut(x, ψψ, rr, χ, R) .* γt
-ur = CCBlade.eval_ur_0(ψψ, rr, χ, R) .* γt
-ul = CCBlade.eval_ul(x, ψψ, rr, χ, R) .* 2. ./tan(χ/2) # =ul/uy0
+ut = CCBlade.eval_ut(x, ψψ, rr, R, χ) .* γt
+ur = CCBlade.eval_ur_0(ψψ, rr, R, χ) .* γt
+ul = CCBlade.eval_ul(x, ψψ, rr, R, χ) .* 2. ./tan(χ/2) # =ul/uy0
 
 ## ut
 
@@ -143,12 +143,12 @@ x = .0
 r = .33
 
 #1
-CCBlade.eval_u!(u, ψ, r, χ, R, k_u, no, we)
+CCBlade.eval_u!(u, ψ, r, R, χ, k_u, no, we)
 
 #2
-ut = CCBlade.eval_ut(x, ψ, r, χ, R; n=10000 )
-ur = CCBlade.eval_ur_0(ψ, r, χ, R)
-ul = CCBlade.eval_ul(x, ψ, r, χ, R; n=10000 )
+ut = CCBlade.eval_ut(x, ψ, r, R, χ; n=10000 )
+ur = CCBlade.eval_ur_0(ψ, r, R, χ)
+ul = CCBlade.eval_ul(x, ψ, r, R, χ; n=10000 )
 
 
 for i = 1:3

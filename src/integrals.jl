@@ -44,7 +44,7 @@ end
 
 
 """
-    eval_ut!(u, x, ψ, r, χ, R, k_u, no, we; γt=1.0)
+    eval_ut!(u, x, ψ, r, R, χ, k_u, no, we; γt=1.0)
 
 Add the velocity induced by the tangantial component of vorticity in the wake to `u`.
 
@@ -58,7 +58,7 @@ Add the velocity induced by the tangantial component of vorticity in the wake to
 - `we :: Array{Float,1}`: `Ni` weights for the Gauss-Legendre quadrature 
 - `γt :: Float`: tangential vorticity in the outer sheet
 """
-function eval_ut!(u, x, ψ, r, χ, R, k_u, no, we; γt=1.0)
+function eval_ut!(u, x, ψ, r, R, χ, k_u, no, we; γt=1.0)
 
     m = tan(χ)  # x = m*z
 
@@ -72,7 +72,7 @@ end
 
 
 """
-    eval_ut(xx, ψψ, rr, χ, R; n=10000)
+    eval_ut(xx, ψψ, rr, R, χ; n=10000)
 
 Convenience function to compute the velocity induced by the tangential vorticity of unit intensity, mainly for plotting
 
@@ -85,7 +85,7 @@ Convenience function to compute the velocity induced by the tangential vorticity
 **Returns**
 - `u::Array{Float,4}`: induced velocity, of size [3 x `nx` x `nψ` x `nr`] (meshgrid)
 """
-function eval_ut(xx, ψψ, rr, χ, R; n=10000)
+function eval_ut(xx, ψψ, rr, R, χ; n=10000)
 
     # integration stuff
     nodes, weights = gausslegendre_0_2π(n)
@@ -104,7 +104,7 @@ function eval_ut(xx, ψψ, rr, χ, R; n=10000)
         iψ = mod(floor(Int64,i/nx),nψ) +1
         ir = floor(Int64,i/(nx*nψ)) +1
 
-        eval_ut!( view(ut,:,i+1), xx[ix],ψψ[iψ],rr[ir], χ, R, k_u, nodes, weights)
+        eval_ut!( view(ut,:,i+1), xx[ix],ψψ[iψ],rr[ir], R, χ, k_u, nodes, weights)
     end
     
     ut = reshape(ut,(3,nx,nψ,nr))
@@ -125,7 +125,7 @@ struct PittPetersApprox <: AbstractApproxUt end
 struct BranlardApprox <: AbstractApproxUt end
 
 """
-    eval_ut_approx!(ut_approx, rr, ψψ, zz, χ, R ; γt=1.0)
+    eval_ut_approx!(ut_approx, rr, ψψ, zz, R, χ ; γt=1.0)
 
 Add the velocity induced by the tangantial component of vorticity in the wake to `u`.
 
@@ -139,21 +139,21 @@ Add the velocity induced by the tangantial component of vorticity in the wake to
 """
 eval_ut_approx!
 
-function eval_ut_approx!(u_approx, x, ψ, r, χ, R, approx::AbstractApproxUt ; γt=1.0)
+function eval_ut_approx!(u_approx, x, ψ, r, R, χ, approx::AbstractApproxUt ; γt=1.0)
     @error "need to choose an ApproxUt"
 end
 
-function eval_ut_approx(u_approx, x, ψ, r, χ, R, approx::ColemanApprox ; γt=1.0)
+function eval_ut_approx(u_approx, x, ψ, r, R, χ, approx::ColemanApprox ; γt=1.0)
     Kzt_approx = r./R .* tan(χ/2)
     u_approx[1,:] .+= ( 1 .+ Kzt_approx .* cos(ψ)) *.5 *γt
 end
 
-function eval_ut_approx!(u_approx, x, ψ, r, χ, R, approx::PittPetersApprox; γt=1.0)
+function eval_ut_approx!(u_approx, x, ψ, r, R, χ, approx::PittPetersApprox; γt=1.0)
     Kzt_approx = r./R .* tan(χ/2) .* (15.0*pi/32.)
     u_approx[1,:] .+= ( 1 .+ Kzt_approx .* cos(ψ)) *.5 *γt
 end
 
-function eval_ut_approx!(u_approx, x, ψ, r, χ, R, approx::BranlardApprox; γt=1.0)
+function eval_ut_approx!(u_approx, x, ψ, r, R, χ, approx::BranlardApprox; γt=1.0)
 
     Kzt_approx = r./R .* tan(χ/2) #another approx exists, only valid on psi=0,z=0
     u_approx[1,:] .+= ( 1 .+ Kzt_approx .* cos(ψ)) *.5 *γt
@@ -169,7 +169,7 @@ end
 
 
 """
-    eval_ur_0!(u, ψ, r, χ, R; Γr = 1.0)
+    eval_ur_0!(u, ψ, r, R, χ; Γr = 1.0)
 
 Add the velocity induced by the root component of vorticity in the wake to `u`, in the rotor plane (x=0).
 
@@ -180,7 +180,7 @@ Add the velocity induced by the root component of vorticity in the wake to `u`, 
 - `R :: Float`: rotor radius
 - `Γr :: Float`: circulation of the root vortex
 """
-function eval_ur_0!(u, ψ, r, χ, R; Γr = 1.0)
+function eval_ur_0!(u, ψ, r, R, χ; Γr = 1.0)
 
     u[1] += Γr .* sin(χ) .* sin.(ψ) ./ (4 .*pi .* r .* (1.0 .- cos.(ψ) .* sin(χ)) )
     u[3] += Γr .* cos(χ) ./ (4*pi .* r .* (1.0 .- cos.(ψ) .* sin(χ)) )
@@ -188,18 +188,18 @@ function eval_ur_0!(u, ψ, r, χ, R; Γr = 1.0)
 end
 
 """
-    eval_ur_ff!(u, ψ, r, χ, R; Γr = 1.0)
+    eval_ur_ff!(u, ψ, r, R, χ; Γr = 1.0)
 
 Same as `eval_ur!` but for the far field ``(x \\rightarrow \\infty)``.
 """
-function eval_ur_ff!(u, ψ, r, χ, R, Θ; Γr = 1.0)
+function eval_ur_ff!(u, ψ, r, R, χ, Θ; Γr = 1.0)
     
     u[2] += Γr ./ (2*pi .* r .* cos.(χ) .* cos(Θ) )
 
 end
 
 """
-    eval_ur(xx, ψψ, rr, χ, R)
+    eval_ur(xx, ψψ, rr, R, χ)
 
 Convenience function to compute the velocity induced by the root vortex of unit circulation in the rotor plane, mainly for plotting
 
@@ -211,7 +211,7 @@ Convenience function to compute the velocity induced by the root vortex of unit 
 **Returns**
 - `u::Array{Float,4}`: induced velocity, of size [3 x `nx` x `nψ` x `nr`] (meshgrid)
 """
-function eval_ur_0(ψψ, rr, χ, R)
+function eval_ur_0(ψψ, rr, R, χ)
     
     nx = 1
     nψ = length(ψψ)
@@ -224,7 +224,7 @@ function eval_ur_0(ψψ, rr, χ, R)
         iψ = mod(floor(Int64,i/nx),nψ) +1
         ir = floor(Int64,i/(nx*nψ)) +1
 
-        eval_ur_0!( view(ur,:,i+1) , ψψ[iψ], rr[ir], χ, R)
+        eval_ur_0!( view(ur,:,i+1) , ψψ[iψ], rr[ir], R, χ)
     end
     ur = reshape(ur,(3,nx,nψ,nr))
 
@@ -260,7 +260,7 @@ end
 
 
 """
-    eval_ul!(u, x, ψ, r, χ, R, k_u, no, we; γl=1.0)
+    eval_ul!(u, x, ψ, r, R, χ, k_u, no, we; γl=1.0)
 
 Add the velocity induced by the longitudinal component of vorticity in the wake to `u`.
 
@@ -274,7 +274,7 @@ Add the velocity induced by the longitudinal component of vorticity in the wake 
 - `we :: Array{Float,1}`: `Ni` weights for the Gauss-Legendre quadrature 
 - `γl :: Float`: tangential vorticity in the outer sheet
 """
-function eval_ul!(u, x, ψ, r, χ, R, k_u, no, we; γl=1.0)
+function eval_ul!(u, x, ψ, r, R, χ, k_u, no, we; γl=1.0)
 
     m = tan(χ)  # x = m*z
 
@@ -288,7 +288,7 @@ end
 
 
 """
-    eval_ul(xx, ψψ, rr, χ, R; n=10000)
+    eval_ul(xx, ψψ, rr, R, χ; n=10000)
 
 Convenience function to compute the velocity induced by the longitudinal vorticity of unit intensity, mainly for plotting
 
@@ -301,7 +301,7 @@ Convenience function to compute the velocity induced by the longitudinal vortici
 **Returns**
 - `u::Array{Float,4}`: induced velocity, of size [3 x `nx` x `nψ` x `nr`] (meshgrid)
 """
-function eval_ul(xx, ψψ, rr, χ, R; n=10000)
+function eval_ul(xx, ψψ, rr, R, χ; n=10000)
 
     # integration stuff
     nodes, weights = gausslegendre_0_2π(n)
@@ -320,7 +320,7 @@ function eval_ul(xx, ψψ, rr, χ, R; n=10000)
         iψ = mod(floor(Int64,i/nx),nψ) +1
         ir = floor(Int64,i/(nx*nψ)) +1
 
-        eval_ul!( view(ul,:,i+1), xx[ix],ψψ[iψ],rr[ir], χ, R, k_u, nodes, weights)
+        eval_ul!( view(ul,:,i+1), xx[ix],ψψ[iψ],rr[ir], R, χ, k_u, nodes, weights)
     end
     
     ul = reshape(ul,(3,nx,nψ,nr))
@@ -331,7 +331,7 @@ end
 ### --- approximations ---
 
 # See Branlard2016
-# function eval_ul_approx!(u_approx, x, ψ, r, χ, R, approx::BranlardApprox; γl=1.0)
+# function eval_ul_approx!(u_approx, x, ψ, r, R, χ, approx::BranlardApprox; γl=1.0)
 #     # u_approx[1,:] .+= ...
 #     # u_approx[3,:] .+= ...
 #     # u_approx[2,:] .+= ...
@@ -341,7 +341,7 @@ end
 ## ----------------- total induced velocity -----------------
 
 """
-    eval_u!(u, ψ, r, χ, R, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
+    eval_u!(u, ψ, r, R, χ, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
 
 Add the velocity induced by unit tangantial, longitudinal and root components of vorticity in the wake to `u`, evaluated at the rotor disk (x=0).
 
@@ -354,11 +354,11 @@ Add the velocity induced by unit tangantial, longitudinal and root components of
 - `no :: Array{Float,1}`: `Ni` nodes for the Gauss-Legendre quadrature between [0,2pi]
 - `we :: Array{Float,1}`: `Ni` weights for the Gauss-Legendre quadrature 
 """
-function eval_u!(u, ψ, r, χ, R, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
+function eval_u!(u, ψ, r, R, χ, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
 
-    eval_ur_0!( u, ψ, r, χ, R)
-    eval_ut!( u, 0.0, ψ, r, χ, R, k_u, no, we)
-    eval_ul!( u, 0.0, ψ, r, χ, R, k_u, no, we)
+    eval_ur_0!( u, ψ, r, R, χ)
+    eval_ut!( u, 0.0, ψ, r, R, χ, k_u, no, we)
+    eval_ul!( u, 0.0, ψ, r, R, χ, k_u, no, we)
 
 end
 
@@ -366,7 +366,7 @@ end
 ## ----------------- convenience functions -------------------------
 
 """
-(private)    gammas(r, χ, R, λ, CT ; γt=1.0)
+(private)    gammas(r, R, χ, λ, CT ; γt=1.0)
 
 Compute the vorticity/circulation ratio between various wake components.
 
@@ -383,7 +383,7 @@ Compute the vorticity/circulation ratio between various wake components.
 - `γl::Float`: longitudinal vorticity wake cylinder sheet
 - `γb::Float`: radial bound vorticity on rotor disk
 """
-@inline function gammas(r, χ, R, λ, CT ; γt=1.0)
+@inline function gammas(r, R, χ, λ, CT ; γt=1.0)
     h = pi * R / λ * (1 + sqrt(1 - CT))
 
     Γr = -γt * h / cos(χ)
@@ -456,10 +456,10 @@ end
 """
 function epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff )
 
-    Γr, γl, _ = gammas(r, χ, R, λ, CT )
+    Γr, γl, _ = gammas(r, R, χ, λ, CT )
 
-    eval_u!(I, ψ, r, χ, R, k_u, no, we; γt=1.0, γl, Γr )
-    eval_ur_ff!(Iff, ψ, r, χ, R, Θ; Γr )
+    eval_u!(I, ψ, r, R, χ, k_u, no, we; γt=1.0, γl, Γr )
+    eval_ur_ff!(Iff, ψ, r, R, χ, Θ; Γr )
     
     ϵx = .5 / I[1]
     ϵψ = .5 * Iff[2] / I[2]
