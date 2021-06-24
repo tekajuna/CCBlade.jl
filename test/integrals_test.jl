@@ -1,6 +1,7 @@
 using PyPlot
 using CCBlade
 using FastGaussQuadrature
+using Test
 
 ## -- Problem definition --
 # definition of the configuration
@@ -8,9 +9,9 @@ R = 1
 χ = 30*pi/180
 
 # sampling position
+x = 0
 ψ = 90 #Caution: not defined as the standard one
 r = .5
-z = 0
 
 # wake intensity
 γt = -1
@@ -26,7 +27,7 @@ eps = 1e-3 #small tolerance to avoid evaluating r=R
 # init, span over a radius, fore-aft diameter if psi = 0
 rr = range(-R-eps,R+eps,length=101)
 
-ut = CCBlade.eval_ut(rr, ψ, z, χ, R) .* γt
+ut = CCBlade.eval_ut(x, ψ, rr, χ, R) .* γt
 
 #--  approximate formulation
 Kzt_approx = rr./R .* tan(χ/2) #another approx exist, only valid on psi=0,z=0
@@ -42,73 +43,84 @@ urt_approx = tan(χ/2) .* cos(ψ) .* uzt_approx - uz0 .* Ft .* sec(χ/2)^2
 uψt_approx = -tan(χ/2) .* sin(ψ) .* uzt_approx
 
 ut_approx2 = zeros(3,length(rr))
-CCBlade.eval_ut_Branlard!(ut_approx2, rr, ψ, z, χ, R)
+CCBlade.eval_ut_approx!(ut_approx2, x, ψ, rr, χ, R, CCBlade.BranlardApprox())
+ut_approx2.*=γt
+
+for j = 1:4:101
+    @test isapprox(uzt_approx[j], ut_approx2[1,j], atol=1e-12)
+end
 
 ## -- Plots --
 
 plt.figure(1)
-plot(rr,ut[1,:])
-plot(rr,urt_approx)
-plot(rr,ut_approx2[1,:].*γt)
+plot(rr,ut[1,1,1,:])
+plot(rr,uzt_approx)
+plot(rr,ut_approx2[1,:])
 
 plt.figure(2)
-plot(rr,ut[2,:])
+plot(rr,ut[2,1,1,:])
 plot(rr,uψt_approx)
-plot(rr,ut_approx2[2,:].*γt)
+plot(rr,ut_approx2[2,:])
 plt.show()
 
 plt.figure(3)
-plot(rr,ut[3,:])
-plot(rr,uzt_approx)
-plot(rr,ut_approx2[3,:].*γt)
+plot(rr,ut[3,1,1,:])
+plot(rr,urt_approx)
+plot(rr,ut_approx2[3,:])
 
 ## -- Perform the integral --
 #polar plots
 rr = range(0,R-eps,length=17)
 ψψ = range(0,2*pi,length=13)'
 
-ut = CCBlade.eval_ut(rr, ψψ, z, χ, R) .* γt
-ur = CCBlade.eval_ur(rr, ψψ, z, χ, R) .* γt
+ut = CCBlade.eval_ut(x, ψψ, rr, χ, R) .* γt
+ur = CCBlade.eval_ur_0(ψψ, rr, χ, R) .* γt
 
 ##
 
 f = plt.figure(4)
 ax = f.add_subplot(111, polar=true)
 
-u1 = ut[1,:,:] .* cos.(ψψ) - ut[2,:,:] .* sin.(ψψ)
-u2 = ut[1,:,:] .* sin.(ψψ) + ut[2,:,:] .* cos.(ψψ)
-ax.quiver(ψψ, rr, u1, u2)
-
+u1 = ut[3,1,:,:]' .* cos.(ψψ) - ut[2,1,:,:]' .* sin.(ψψ)
+u2 = ut[3,1,:,:]' .* sin.(ψψ) + ut[2,1,:,:]' .* cos.(ψψ)
+# ax.quiver(ψψ, rr, u1, u2)
+ax.quiver(ψψ, rr, -u1, -u2)
+ax.invert_xaxis()
+ax.set_theta_zero_location("W")  # theta=0 at the left
+# ax.set_theta_direction(-1)  # theta increasing clockwise
 
 f = plt.figure(5)
 ax = f.add_subplot(111, polar=true)
-ax.contour(ψψ, rr, ut[3,:,:],[-.7,-.6,-.5,-.4,-.3])
-
+ax.contour(ψψ, rr, ut[1,1,:,:]',[-.7,-.6,-.5,-.4,-.3])
+ax.invert_xaxis()
+ax.set_theta_zero_location("W")  # theta=0 at the left
+ax.set_theta_direction(-1)  # theta increasing clockwise
 
 f = plt.figure(6)
 ax = f.add_subplot(111, polar=true)
-ax.contour(ψψ, rr, ur[3,:,:],[-.2,-.1,-.05,0,.05,.1,.2])
+ax.contour(ψψ, rr, ur[1,1,:,:]',[-.2,-.1,-.05,0,.05,.1,.2])
+ax.invert_xaxis()
+ax.set_theta_zero_location("W")  # theta=0 at the left
+ax.set_theta_direction(-1)  # theta increasing clockwise
 
 
-
-##
-using Test
+## verif at a given point
 
 no, we = gausslegendre( 10000 );
 no .= 2 .* pi .* .5 * (no .+ 1)
 k_u = zeros(3, length(no))
 u = zeros(3)
 
-r = .33
+x = .05
 ψ = 1.
-z = .05
+r = .33
 
 #1
-CCBlade.eval_u!(u, r, ψ, z, χ, R, k_u, no, we)
+CCBlade.eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
 
 #2
-ut = CCBlade.eval_ut(r, ψ, z, χ, R; n=10000 )
-ur = CCBlade.eval_ur(r, ψ, z, χ, R)
+ut = CCBlade.eval_ut(x, ψ, r, χ, R; n=10000 )
+ur = CCBlade.eval_ur_0(ψ, r, χ, R)
 
 for i = 1:3
     @test isapprox(u[i], ut[i]+ur[i], atol=1e-12)

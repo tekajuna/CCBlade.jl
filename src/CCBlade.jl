@@ -125,6 +125,7 @@ struct OperatingPoint{TF1, TF2, TF3, TF4, TF5}
     pitch::TF3  
     mu::TF4
     asound::TF5
+    #extend this with gauss legendre stuff? or put a wake object in rotor
 end
 
 # convenience constructor when Re and Mach are not used.
