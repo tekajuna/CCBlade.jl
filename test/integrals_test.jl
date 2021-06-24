@@ -7,6 +7,8 @@ using Test
 # definition of the configuration
 R = 1
 χ = 30*pi/180
+Θ = 5*pi/180
+λ = 8
 
 # sampling position
 x = 0
@@ -141,7 +143,7 @@ x = .0
 r = .33
 
 #1
-CCBlade.eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
+CCBlade.eval_u!(u, ψ, r, χ, R, k_u, no, we)
 
 #2
 ut = CCBlade.eval_ut(x, ψ, r, χ, R; n=10000 )
@@ -152,3 +154,21 @@ ul = CCBlade.eval_ul(x, ψ, r, χ, R; n=10000 )
 for i = 1:3
     @test isapprox(u[i], ut[i]+ur[i]+ul[i], atol=1e-12)
 end
+
+
+## -- verif in-place and out-of-place epsilons --
+
+k_u = zeros(3, length(no))
+I = zeros(3)
+Iff = zeros(3)
+
+ψ = 1.
+r = .33
+CT = 0.2
+
+ϵx,ϵψ,ϵr = CCBlade.epsilons(ψ, r, R, χ, Θ, λ, CT)
+ϵx2,ϵψ2,ϵr2 = CCBlade.epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff )
+
+@test isapprox(ϵx, ϵx2, atol=1e-12)
+@test isapprox(ϵψ, ϵψ2, atol=1e-12)
+@test isapprox(ϵr, ϵr2, atol=1e-12)

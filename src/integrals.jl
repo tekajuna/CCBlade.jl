@@ -88,10 +88,8 @@ Convenience function to compute the velocity induced by the tangential vorticity
 function eval_ut(xx, ψψ, rr, χ, R; n=10000)
 
     # integration stuff
-    nodes, weights = gausslegendre( n );
-    nodes .= 2 .* pi .* .5 * (nodes .+ 1)
-    # weights .*= 2 * pi / 2 # the change of variable [-1:1]->[0:2pi] can be included in the weights. We don't do it though, since the pi will cancel out withint the integrals.
-
+    nodes, weights = gausslegendre_0_2π(n)
+    
     # params
     nx = length(xx)
     nψ = length(ψψ)
@@ -306,9 +304,7 @@ Convenience function to compute the velocity induced by the longitudinal vortici
 function eval_ul(xx, ψψ, rr, χ, R; n=10000)
 
     # integration stuff
-    nodes, weights = gausslegendre( n );
-    nodes .= 2 .* pi .* .5 * (nodes .+ 1)
-    # weights .*= 2 * pi / 2 # the change of variable [-1:1]->[0:2pi] can be included in the weights. We don't do it though, since the pi will cancel out withint the integrals.
+    nodes, weights = gausslegendre_0_2π(n)
 
     # params
     nx = length(xx)
@@ -345,27 +341,129 @@ end
 ## ----------------- total induced velocity -----------------
 
 """
-    eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
+    eval_u!(u, ψ, r, χ, R, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
 
-Add the velocity induced by unit tangantial, longitudinal and root components of vorticity in the wake to `u`.
+Add the velocity induced by unit tangantial, longitudinal and root components of vorticity in the wake to `u`, evaluated at the rotor disk (x=0).
 
 **Arguments**
 - `u :: Array{Float,1}`: preallocated velocity vector [ux,uψ,ur]
-- `x,ψ,r :: Float`: coordinates where to evaluate the velocity
+- `ψ,r :: Float`: coordinates where to evaluate the velocity
 - `χ :: Float`: skew angle
 - `R :: Float`: rotor radius
 - `k_u :: Array{Float,2}`: preallocated integrand of size [3*`Ni`], for the computation of [ux,uψ,ur]
 - `no :: Array{Float,1}`: `Ni` nodes for the Gauss-Legendre quadrature between [0,2pi]
 - `we :: Array{Float,1}`: `Ni` weights for the Gauss-Legendre quadrature 
 """
-function eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
+function eval_u!(u, ψ, r, χ, R, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
 
     eval_ur_0!( u, ψ, r, χ, R)
-    eval_ut!( u, x, ψ, r, χ, R, k_u, no, we)
-    eval_ul!( u, x, ψ, r, χ, R, k_u, no, we)
+    eval_ut!( u, 0.0, ψ, r, χ, R, k_u, no, we)
+    eval_ul!( u, 0.0, ψ, r, χ, R, k_u, no, we)
 
+end
+
+
+## ----------------- convenience functions -------------------------
+
+"""
+(private)    gammas(r, χ, R, λ, CT ; γt=1.0)
+
+Compute the vorticity/circulation ratio between various wake components.
+
+**Arguments**
+- `r :: Float`: radial location
+- `χ :: Float`: skew angle
+- `R :: Float`: rotor radius
+- `λ :: Float`: tip speed ratio
+- `CT :: Float`: expected/approximated rotor thrust coefficient
+- `γt :: Float`: tangential vorticity in wake cylinder sheet (keep 1 to obtain ratios as an output)
+
+**Returns**
+- `Γr::Float`: circulation of root vortex
+- `γl::Float`: longitudinal vorticity wake cylinder sheet
+- `γb::Float`: radial bound vorticity on rotor disk
+"""
+@inline function gammas(r, χ, R, λ, CT ; γt=1.0)
+    h = pi * R / λ * (1 + sqrt(1 - CT))
+
+    Γr = -γt * h / cos(χ)
+    γl = γt / (2 * pi * R) * h / cos(χ)
+    γb = γt / (2 * pi * r) * h / cos(χ)
+
+    return Γr, γl, γb
+end
+
+"""
+(private)   gausslegendre_0_2π(n)
+
+    Compute nodes and weights for a Gauss-Legendre quadrature between 0 and 2π such that
+    ```math
+     \\int_0^{2\\pi} f(x) dx = \\pi \\sum_n \\textrm{weights}_n f(\\textrm{nodes}_n)
+    ```
+"""
+@inline function gausslegendre_0_2π(n)
+    nodes, weights = gausslegendre( n );
+    nodes .= 2 .* pi .* .5 * (nodes .+ 1)
+    # weights .*= 2 * pi / 2 # the change of variable [-1:1]->[0:2pi] can be included in the weights. We don't do it though, since the pi will cancel out withint the integrals.
+    return nodes, weights
 end
 
 
 ## ----------------- epsilon functions for the BEM -----------------
 
+"""
+    epsilons(ψ, r, R, χ, Θ, λ, CT )
+
+Compute the epsilon factors at the rotor disk (x=0). See Theory in the documentation.
+
+**Arguments**
+- `ψ,r :: Float`: azimuthal, radial location
+- `R :: Float`: rotor radius
+- `χ :: Float`: skew angle
+- `Θ :: Float`: rotor tilt
+- `λ :: Float`: tip speed ratio
+- `CT :: Float`: expected/approximated rotor thrust coefficient
+- `n :: Int`: number of quadrature points
+
+**Returns**
+- `ϵx,ϵψ,ϵr::Float`: epsilon factors
+"""
+function epsilons(ψ, r, R, χ, Θ, λ, CT ; n=10000)
+
+    # integration stuff
+    nodes, weights = gausslegendre_0_2π(n)
+
+    # prealloc
+    k_u = zeros(3, length(nodes))
+    I = zeros(3)
+    Iff = zeros(3)
+
+    # compute
+    ϵx,ϵψ,ϵr = epsilons!(ψ, r, R, χ, Θ, λ, CT, nodes, weights, k_u, I, Iff )
+
+    return ϵx,ϵψ,ϵr
+end
+
+
+"""
+    epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff ; n=10000)
+
+    See `epsilons`.
+
+**Arguments**
+- `no,we :: Array{Float,1}`: nodes and weights for the Gauss-Legendre quadrature
+- `k_u, I, Iff :: Array{Float,1}`: buffer of size 3
+"""
+function epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff )
+
+    Γr, γl, _ = gammas(r, χ, R, λ, CT )
+
+    eval_u!(I, ψ, r, χ, R, k_u, no, we; γt=1.0, γl, Γr )
+    eval_ur_ff!(Iff, ψ, r, χ, R, Θ; Γr )
+    
+    ϵx = .5 / I[1]
+    ϵψ = .5 * Iff[2] / I[2]
+    ϵr = 4. * I[1] * I[3]
+
+    return ϵx,ϵψ,ϵr
+end
