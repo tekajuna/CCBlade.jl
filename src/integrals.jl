@@ -115,8 +115,8 @@ function eval_ut(xx, ψψ, rr, χ, R; n=10000)
 end
 
 
-# -- approximated versions --
-# TODO: regroup with the not approximated version
+### -- approximated versions --
+#TODO: regroup with the not approximated version
 
 abstract type AbstractApproxUt end
 
@@ -160,11 +160,6 @@ function eval_ut_approx!(u_approx, x, ψ, r, χ, R, approx::BranlardApprox; γt=
     Kzt_approx = r./R .* tan(χ/2) #another approx exists, only valid on psi=0,z=0
     u_approx[1,:] .+= ( 1 .+ Kzt_approx .* cos(ψ)) *.5 *γt
     Ft = Kzt_approx ./2 ./ tan(χ/2)
-
-    # Kξt_approx = Kzt_approx ./ sin(χ)
-    # Kxt_approx = Kξt_approx .* cos(χ)
-    # uxt_approx =  (tan(χ/2) .- Kxt_approx .* cos(ψ))
-    # uyt_approx = -uz0 .* Ft .* sec(χ/2)^2 .* sin(ψ)
 
     u_approx[3,:] .+= (tan(χ/2) .* cos(ψ) .* u_approx[1,:] .- Ft .* sec(χ/2)^2 *.5) *γt
     u_approx[2,:] .+= (-tan(χ/2) .* sin(ψ) .* u_approx[1,:]) *γt
@@ -241,8 +236,110 @@ end
 
 ## ----------------- velocity induced by the longitudinal vorticity in the outer sheet -----------------
 
-#TODO: add vel induced by longitundinal vorticity, u_l 
+"""
+    integ_ul!(k_u, θ, r, ψ, z, m, R)
 
+Integrand for the velocity induced by the longitudinal vorticity.
+
+**Arguments**
+- `k_u :: Array{Float,2}`: preallocated integrand of size [3*`Ni`], for the computation of [ux,uψ,ur]
+- `θ :: Array{Float,1}`: integration variable of size `Ni`
+- `x,ψ,r :: Float`: coordinates in the rotor c.s.
+- `m,R :: Float`: skew angle param and scalars and rotor radius
+"""
+function integ_ul!(k_u, θ, x, ψ, r, m, R)
+    rt = r./R
+    xt = x./R
+
+    D1 = sqrt.(1 .+ rt.^2 .+ xt.^2 .- 2.0.*rt.* cos.(θ .- ψ))
+    D2 = m .* (cos.(θ) .- rt .* cos.(ψ)) .- xt 
+    D  = D1 .* (D2 .+ sqrt.(1+m^2) .* D1 )
+
+    k_u[1,:] = m .* ( -sin.(θ) .+ rt .* sin.(ψ) ) ./ D
+    k_u[2,:] = ( -m .* xt .* cos.(ψ) .- cos.(θ .- ψ) .+ rt ) ./ D
+    k_u[3,:] = ( -m .* xt .* sin.(ψ) .+ sin.(θ .- ψ) ) ./ D
+end
+
+
+"""
+    eval_ul!(u, x, ψ, r, χ, R, k_u, no, we; γl=1.0)
+
+Add the velocity induced by the longitudinal component of vorticity in the wake to `u`.
+
+**Arguments**
+- `u :: Array{Float,1}`: preallocated velocity vector [ux,uψ,ur]
+- `x,ψ,r :: Float`: coordinates where to evaluate the velocity
+- `χ :: Float`: skew angle
+- `R :: Float`: rotor radius
+- `k_u :: Array{Float,2}`: preallocated integrand of size [3*`Ni`], for the computation of [ux,uψ,ur]
+- `no :: Array{Float,1}`: `Ni` nodes for the Gauss-Legendre quadrature between [0,2pi]
+- `we :: Array{Float,1}`: `Ni` weights for the Gauss-Legendre quadrature 
+- `γl :: Float`: tangential vorticity in the outer sheet
+"""
+function eval_ul!(u, x, ψ, r, χ, R, k_u, no, we; γl=1.0)
+
+    m = tan(χ)  # x = m*z
+
+    integ_ul!(k_u,no,x,ψ,r,m,R)
+    
+    for j = 1:3 #is this faster than a matmul?
+        u[j] += γl * dot( we, k_u[j,:] ) * 0.25 # quadrature with interval [0,2pi]: *pi, factor: 1/(4pi)
+    end
+    # u = γt .* k_u * we .* 0.25
+end
+
+
+"""
+    eval_ul(xx, ψψ, rr, χ, R; n=10000)
+
+Convenience function to compute the velocity induced by the longitudinal vorticity of unit intensity, mainly for plotting
+
+**Arguments**
+- `xx,ψψ,rr  :: Array{Float,1}`: list of coordinates where to evaluate the velocity, respectively of size `nx,nψ,nr`
+- `χ :: Float`: skew angle
+- `R :: Float`: rotor radius
+- `n :: Int`: number of integration points in the quadrature
+
+**Returns**
+- `u::Array{Float,4}`: induced velocity, of size [3 x `nx` x `nψ` x `nr`] (meshgrid)
+"""
+function eval_ul(xx, ψψ, rr, χ, R; n=10000)
+
+    # integration stuff
+    nodes, weights = gausslegendre( n );
+    nodes .= 2 .* pi .* .5 * (nodes .+ 1)
+    # weights .*= 2 * pi / 2 # the change of variable [-1:1]->[0:2pi] can be included in the weights. We don't do it though, since the pi will cancel out withint the integrals.
+
+    # params
+    nx = length(xx)
+    nψ = length(ψψ)
+    nr = length(rr)
+
+    # prealloc
+    k_u = zeros(3, length(nodes))
+    ul = zeros(3, nr*nψ*nx)
+
+    for i = 0 : nr*nψ*nx - 1
+        ix = mod(i,nx) +1
+        iψ = mod(floor(Int64,i/nx),nψ) +1
+        ir = floor(Int64,i/(nx*nψ)) +1
+
+        eval_ul!( view(ul,:,i+1), xx[ix],ψψ[iψ],rr[ir], χ, R, k_u, nodes, weights)
+    end
+    
+    ul = reshape(ul,(3,nx,nψ,nr))
+    
+    return ul
+end
+
+### --- approximations ---
+
+# See Branlard2016
+# function eval_ul_approx!(u_approx, x, ψ, r, χ, R, approx::BranlardApprox; γl=1.0)
+#     # u_approx[1,:] .+= ...
+#     # u_approx[3,:] .+= ...
+#     # u_approx[2,:] .+= ...
+# end
 
 
 ## ----------------- total induced velocity -----------------
@@ -250,7 +347,7 @@ end
 """
     eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
 
-Add the velocity induced by unit tangantial and root components of vorticity in the wake to `u`.
+Add the velocity induced by unit tangantial, longitudinal and root components of vorticity in the wake to `u`.
 
 **Arguments**
 - `u :: Array{Float,1}`: preallocated velocity vector [ux,uψ,ur]
@@ -265,8 +362,10 @@ function eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
 
     eval_ur_0!( u, ψ, r, χ, R)
     eval_ut!( u, x, ψ, r, χ, R, k_u, no, we)
+    eval_ul!( u, x, ψ, r, χ, R, k_u, no, we)
 
 end
 
 
 ## ----------------- epsilon functions for the BEM -----------------
+

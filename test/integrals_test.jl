@@ -50,7 +50,7 @@ for j = 1:4:101
     @test isapprox(uzt_approx[j], ut_approx2[1,j], atol=1e-12)
 end
 
-## -- Plots --
+## -- Linear plots --
 
 plt.figure(1)
 plot(rr,ut[1,1,1,:])
@@ -68,15 +68,17 @@ plot(rr,ut[3,1,1,:])
 plot(rr,urt_approx)
 plot(rr,ut_approx2[3,:])
 
-## -- Perform the integral --
-#polar plots
+
+
+## -- Polar plots --
 rr = range(0,R-eps,length=17)
 ψψ = range(0,2*pi,length=13)'
 
 ut = CCBlade.eval_ut(x, ψψ, rr, χ, R) .* γt
 ur = CCBlade.eval_ur_0(ψψ, rr, χ, R) .* γt
+ul = CCBlade.eval_ul(x, ψψ, rr, χ, R) .* 2. ./tan(χ/2) # =ul/uy0
 
-##
+## ut
 
 f = plt.figure(4)
 ax = f.add_subplot(111, polar=true)
@@ -96,6 +98,8 @@ ax.invert_xaxis()
 ax.set_theta_zero_location("W")  # theta=0 at the left
 ax.set_theta_direction(-1)  # theta increasing clockwise
 
+## ur
+
 f = plt.figure(6)
 ax = f.add_subplot(111, polar=true)
 ax.contour(ψψ, rr, ur[1,1,:,:]',[-.2,-.1,-.05,0,.05,.1,.2])
@@ -103,15 +107,36 @@ ax.invert_xaxis()
 ax.set_theta_zero_location("W")  # theta=0 at the left
 ax.set_theta_direction(-1)  # theta increasing clockwise
 
+## ul
 
-## verif at a given point
+f = plt.figure(7)
+ax = f.add_subplot(111, polar=true)
+
+u1 = ul[3,1,:,:]' .* cos.(ψψ) - ul[2,1,:,:]' .* sin.(ψψ)
+u2 = ul[3,1,:,:]' .* sin.(ψψ) + ul[2,1,:,:]' .* cos.(ψψ)
+# ax.quiver(ψψ, rr, u1, u2)
+ax.quiver(ψψ, rr, -u1, -u2)
+ax.invert_xaxis()
+ax.set_theta_zero_location("W")  # theta=0 at the left
+# ax.set_theta_direction(-1)  # theta increasing clockwise
+
+f = plt.figure(8)
+ax = f.add_subplot(111, polar=true)
+ax.contour(ψψ, rr, ul[1,1,:,:]'.*100.,[-10.,-5.,-2.,-.5,0.,.5,2.,5.,10.])
+ax.invert_xaxis()
+ax.set_theta_zero_location("W")  # theta=0 at the left
+ax.set_theta_direction(-1)  # theta increasing clockwise
+
+
+
+## -- verif at a given point that in-place and out-of-place agree --
 
 no, we = gausslegendre( 10000 );
 no .= 2 .* pi .* .5 * (no .+ 1)
 k_u = zeros(3, length(no))
 u = zeros(3)
 
-x = .05
+x = .0
 ψ = 1.
 r = .33
 
@@ -121,7 +146,9 @@ CCBlade.eval_u!(u, x, ψ, r, χ, R, k_u, no, we)
 #2
 ut = CCBlade.eval_ut(x, ψ, r, χ, R; n=10000 )
 ur = CCBlade.eval_ur_0(ψ, r, χ, R)
+ul = CCBlade.eval_ul(x, ψ, r, χ, R; n=10000 )
+
 
 for i = 1:3
-    @test isapprox(u[i], ut[i]+ur[i], atol=1e-12)
+    @test isapprox(u[i], ut[i]+ur[i]+ul[i], atol=1e-12)
 end
