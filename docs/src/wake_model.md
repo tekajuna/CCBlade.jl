@@ -37,7 +37,7 @@ The radial and tangential velocities induced by the tangential component of the 
 
 ![](sampl_urt.png)
 
-Similarly, the axial velocity induced by the root vortex ``u_{z,r}`` (assuming ``\Gamma_{tot} = 1``):
+Similarly, the axial velocity induced by the root vortex ``u_{z,r}`` (assuming ``\Gamma_{r} = -1``):
 
 ![](sampl_uzr.png)
 
@@ -116,8 +116,8 @@ We showed that the induced veloctities at the rotor can be expressed as
 ```math
 \begin{aligned}
 u_x &= I_x \gamma_t \\
-u_r &= I_r \gamma_t \\
 u_\psi &= I_\psi \gamma_t 
+u_r &= I_r \gamma_t \\
 \end{aligned}
 ```
 where, again, the ``I`` factors are computed numerically and do not depend on ``\gamma``
@@ -170,7 +170,7 @@ such that
 We re-develop the BEM equations following the same logic as in [Ning2021], but for the general case of a turbine with yaw and non-straight/preconed blades. We make use of the definitions of the epsilon factors, and the standard definition of the induction factors:
 
 ```math
-a = \frac{u_x}{V_x} \quad a' = \frac12 \frac{u_\psi}{V_y}
+a = \frac{u_x}{V_x} \quad a' = \frac{u_\psi}{V_y}
 ```
 
 We refer the interested reader to [Branlard2015, sect.4.2] (and refs. therein) for a formal explanation of the relation between the BEM theory and the vortex-induced velocity.
