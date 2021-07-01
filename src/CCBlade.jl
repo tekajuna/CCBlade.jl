@@ -270,8 +270,8 @@ function residual(phi, rotor, section, op)
     ϵx,ϵψ,ϵr = epsilons(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT )
 
     # angle of attack
-    # TODO: theta+pitch should account for deflection -> theta only
-    alpha = theta - phi
+    # alpha = theta - phi 
+    alpha = theta + pitch - phi #APPROX PITCH
 
     # Reynolds/Mach number
     W0 = sqrt(Vx^2 + Vy^2)  # ignoring induction, which is generally a very minor difference and only affects Reynolds/Mach number
@@ -302,13 +302,27 @@ function residual(phi, rotor, section, op)
     ct = cl*sphi + cd*cphi
 
     # trigonometric factors
-    p1 = (cc*cp*cc0 - sc*sc0)
-    p2 = (cc*cp*sc0 + sc*cc0)
+    # p1 = (cc*cp*cc0 - sc*sc0)
+    # p2 = (cc*cp*sc0 + sc*cc0)
+    # p3 = cp 
+    # p4 = cc0*sp
+    # p5 = cc*sp
+    # p6 = sc0*sp
+    #APPROX PITCH:
+    p1 = cos(precone+cone)
+    p2 = sin(precone+cone)
+    p3 = 1. 
+    p4 = 0.
+    p5 = 0.
+    p6 = 0.
 
     # changing frame from local airfoil to azm
-    cx = p1 * cn - (sp*cc0) * ct
-    cy = (cc*sp) * cn + (cp) * ct #note: could neglect the first term as we do for the momentum
-    cz =-p2 * cn + sp*sc0 * ct  #note: could also neglect the last term, for the same reason
+    # TODO: use change of frame functions from supplemental?
+    #   otherwise, A' in my notes, with sweep = 0 assumed
+    cx = p1 * cn - p4 * ct
+    cy = p5 * cn + p3 * ct #note: could neglect the first term as we do for the momentum
+    cz =-p2 * cn + p6 * ct  #note: could also neglect the last term, for the same reason
+
     # hub/tip loss
     F = 1.0
     if !isnothing(rotor.tip)
@@ -393,27 +407,27 @@ function residual(phi, rotor, section, op)
             return 1.0, Outputs()
         end
 
-        kplhs = Un * cp / ( Vx * (1+a) ) * kp
+        kplhs = Un * p3 / ( Vx * (1+a) ) * kp
 
         # ap = kp/(1 + kp)
         ap = kplhs/(1 + kplhs)
 
-        println("ap")
-        # println(kplhs)
-        println(ap)
-        println(kp/(1 + kp))
-        println("-")
+        # println("ap")
+        # # println(kplhs)
+        # println(ap)
+        # println(kp/(1 + kp))
+        # println("-")
 
         v = ap * Vy
-        Ut = cp * Vy * (1 - ap)
+        Ut = p3 * Vy * (1 - ap)
 
 
         # ------- residual function -------------
         # R = sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap)
         R = sin(phi)/Un - cos(phi)/Ut
 
-        println(R)
-        # println(sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap))
+        # println(R)
+        # # println(sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap))
     end
 
 
@@ -717,8 +731,7 @@ Compute relative wind velocity components along blade accounting for inflow cond
 - `asound::Float64`: air speed of sound (m/s)
 """
 function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
-    sp = sin(pitch)
-    cp = cos(pitch)
+    
     sy = sin(yaw)
     cy = cos(yaw)
     st = sin(tilt)
@@ -809,7 +822,7 @@ function thrusttorque(rotor, sections, outputs::Vector{TO}) where TO
 
     # extract loading as force components in the rotor plane c.s.,
     # fx, fy, fz = localLoadsToBladeFrame(rotor, sections, outputs, toRotorPlane=true)
-    fx, fy, fz = outputs.Np, outputs.Tp, outputs.Np.*0.
+    fx, fy, fz = outputs.Np, -outputs.Tp, outputs.Np.*0.  #CAUTION: minus sign, see explanation in localLoadsToBladeFrame
 
     # extend to the root and tip
     fxfull = [0.0; fx; 0.0] 
