@@ -200,29 +200,30 @@ The main idea of this development is to relate the local forces on the blades (w
 
 ### Reference frames
 
-Figures are modified from [Ning2015].
+Some figures are modified from [Ning2015].
+The chaining between frames and corresponding rotations and angle is the following:
+
+![](frames.png)
 
 **Rotor related frame:**
 
 ![](rotor_frame.png)
 
-We will express the momentum in the direction normal to the rotor plane (after yaw and tilt, **before coning and sweep**). That is where our ``x,y,z`` coordinate system is defined. 
+We will express the momentum in the direction normal to the rotor plane (after yaw and tilt, **before coning and sweep**). That is where our ``x,y,z \equiv x_{az},y_{az},z_{az}`` coordinate system is defined. 
 
 
 **Blade related frames:**
 
 ![](blade_frame.png)
 
-Note that ``\beta`` is the local coning angle (that accounts both for precone and flapwise bending).
-
-
+Note that ``\beta`` is the local coning angle (that accounts only for flapwise bending).
 
 Given a position on the rotor parametrized by ``x_a,y_a,z_a``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x,y,z``) frame. 
 ```math
 \begin{aligned}
 V_x &= V_\infty \cos(\chi_0) \cos(\Theta) \\
 V_y &= V_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega z_a \\
-V_z &= V_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) )
+V_z &= V_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) ) - \Omega y_a
 \end{aligned}
 ```
 This is essentially Eq.28 in [Ning2015], without precone (since we are interested in velocities in the rotor plane). 
@@ -312,51 +313,88 @@ f_t &= \frac12 \rho W^2 c c_t(\phi) dr
 and we need to express these forces in the coordinate system associated with the rotor disk
 ```math
 \begin{aligned}
-f_x &= \frac12 \rho W^2 c c_1(c_n,c_t,\beta,s) dr \\
-f_y &= \frac12 \rho W^2 c c_2(c_n,c_t,\beta,s) dr
+f_x &= \frac12 \rho W^2 c c_x(c_n,c_t,\beta_0, \theta_0, \beta,s) dr \\
+f_y &= \frac12 \rho W^2 c c_y(c_n,c_t,\beta_0, \theta_0, \beta,s) dr
 \end{aligned}
 ```
-where ``c_1,c_2`` are coordinate transformations (blade to rotor).
+where ``c_x,c_y`` are coordinate transformations (blade to rotor).
 
 Similarly, we need to express ``W, U_n, U_t`` as a function of the velocities in the rotor c.s.:
 ```math
 [U_n, U_t, U_r]^T = A [U_x, U_y, U_z ]^T = A [V_x (1+a), V_y (1-a'), V_z + V_x a \epsilon_r]^T
 ```
-where A is the rotation matrix between the rotor frame and the local blade frame (that includes coning and sweep)
+where A is the rotation matrix between the rotor frame and the local blade frame (that includes precone ``\beta_0``,  pitch``\theta_0``, coning ``\beta``, sweep ``s``):
 
 ```math
 A = \left(\begin{matrix}
-\cos \beta          & 0         & -\sin \beta\\
-\sin s \sin \beta   & \cos s    & \sin s \cos \beta \\
-\cos s \sin \beta   & - \sin s  & \cos s \cos \beta
+ 1               &  0            &    \\
+ 0               &  \cos s       &  \sin s \\
+ 0               & -\sin s       &  \cos s
+\end{matrix}\right) %
+\left(\begin{matrix}
+ \cos \beta      &  0                & -\sin \beta\\
+ 0               &  1                &  0 \\
+ \sin \beta      &  0                &  \cos \beta
+\end{matrix}\right) %
+\left(\begin{matrix}
+ \cos \theta_0      &  \sin \theta_0    & 0\\
+-\sin \theta_0      &  \cos \theta_0    & 0 \\
+ 0                  &  0                & 1
+\end{matrix}\right) %
+\left(\begin{matrix}
+ \cos \beta_0      &  0                & -\sin \beta_0\\
+ 0                 &  1                &  0 \\
+ \sin \beta_0      &  0                &  \cos \beta_0 
 \end{matrix}\right)
 ```
+
+!!! warning
+    In theory, ``a'`` is related to the tangential velocity component ``V_\psi`` which may slightly differ  from ``V_y``  when the blade center line has a non-zero ``y`` in the azimuthal frame (i.e., the blade is not purely radial). However, we here neglect this effect, assuming that ``V_\psi = V_y`` and that the rotational induced velocity is similarly obtained ``u_y = u_\psi = V_y a'``. This is the main reason for invoking the previously mentioned hypothesis of sweep though shear.
 
 The full expression of the total velocities in the airfoil frame reads
 
 ```math
-\begin{aligned}
-U_n &= \cos\beta V_x (1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
-U_t &= \sin s \sin\beta V_x ( 1 + a) + \cos(s)  V_y  (1-a') + \sin s  \cos\beta ( V_z + V_x a \epsilon_r)  
-\end{aligned}
+\left[\begin{matrix} 
+U_n \\ 
+U_t
+\end{matrix}\right] %
+\left(\begin{matrix}
+\cos \beta  \cos \theta_0 \cos \beta_0 - \sin \beta \sin \beta_0       & \cos \beta \sin \theta_0         & -\cos \beta \cos \theta_0 \sin \beta_0 - \sin \beta \cos \beta_0\\
+... & ... & ...\\
+\end{matrix}\right)
+\left[\begin{matrix} 
+V_x (1+a) \\ 
+V_y (1-a')\\
+V_z + V_x a \epsilon_r
+\end{matrix}\right]
 ```
 
+
 !!! note
-    What we obtain at this stage is a system where we can hardly obtain an expression of ``U_n`` or ``U_t`` as a function of only ``a`` or ``a'``. This will prevent the expression of the residual under the form of a single equation, as a function of ``\phi``. However, we notice that if we neglect the sweep angle in this coordinate transformation, we can achieve decoupling. This is the main reason for invoking the previously mentioned hypothesis of sweep though shear.
+    What we obtain at this stage is a system where we can hardly obtain an expression of ``U_n`` or ``U_t`` as a function of only ``a`` or ``a'``. This will prevent the expression of the residual under the form of a single equation, as a function of ``\phi``. 
+    However, we notice that if we neglect ``A_{12}``, the expression of ``U_n`` does not depend on ``a'`` which effectively decouples the system. Similarly, we may want to have that ``U_t`` only depends on ``V_y``. 
+    We will thus arbitrarily set ``\sin \theta_0 = 0``, which achieves both objectives.
+
+    We further neglect the sweep angle in this coordinate transformation, to simplify the expressions and because sweep angle is generally small.
 
     !!! warning 
-        Neglecting sweep is "necessary" in the velocity transformation, but not in ``c_1,c_2``. For consistency though, we also neglect it there.
-
-    !!! danger
-        Afterwards, I realize that this assumption might even not be necessary... ``U_n`` always only depends on ``a``, which means that the axial momentum can indeed be expressed only as a function of ``a``. Solving it for ``a``, we can then use that value in the angular momentum which will depend on ``a,a'``, and solve for ``a'``.
+        For consistency, we also neglect the sweep in ``c_x,c_y``..
 
 
-In the end, neglecting the sweep angle (or more precisely, considering sweep only through a shear and no change in direction)
+With these assumtions, we obtain
 
 ```math
 \begin{aligned}
-U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) \\
-U_t &= V_y  (1-a') 
+U_n &= (\cos \beta  \cos \theta_0 \cos \beta_0 - \sin \beta \sin \beta_0) V_x ( 1 + a) - (\cos \beta \cos \theta_0 \sin \beta_0 + \sin \beta \cos \beta_0) ( V_z + V_x a \epsilon_r) \\
+U_t &=  \cos \theta_0 V_y  (1-a')
+\end{aligned}
+```
+
+Thus,
+```math
+\begin{aligned}
+U_n &= p_1 V_x ( 1 + a) + p_2 ( V_z + V_x a \epsilon_r) \\
+U_t &= p_3 V_y  (1-a')
 \end{aligned}
 ```
 
@@ -365,12 +403,15 @@ U_t &= V_y  (1-a')
 
     ```math
     \begin{aligned}
-    U_n &= \cos\beta V_x ( 1 + a) - \sin\beta ( V_z + V_x a \epsilon_r) - v_n \\
-    U_t &= V_y  (1-a') - v_t
+    U_n &= ... - v_n \\
+    U_t &= ... - v_t
     \end{aligned}
     ```
 
     This only slightly modifies the BEM equations hereunder.
+
+    !!! danger
+        Maybe more than slightly... Consider doing ``a (V_x+v_x) = u_x``, i.e. add deflection velocity to the external velocities?
 
 
 ### BEM equations
@@ -385,7 +426,7 @@ Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 
 We equate the thrust coefficient deduced from axial momentum and from the airfoil aerodynamics:
 ```math
-\frac{a (1 + a)}{( (\cos\beta V_x - \sin\beta V_z) + (\cos\beta - \sin \beta \epsilon_r) V_x a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \cos^2\phi} \frac{c c_1}{8 \pi z_a} \overset{\Delta}{=} \kappa
+\frac{a (1 + a)}{( (p_1 V_x + p_2 V_z) + (p_1 + p_2 \epsilon_r) V_x a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \sin^2\phi} \frac{c c_x}{8 \pi z_a} \overset{\Delta}{=} \kappa
 ```
 
 We can then solve for ``a``:
@@ -404,7 +445,7 @@ a = \frac{-2 b_1 b_2 \kappa +1 \pm \sqrt{4 b_1^2 \kappa - b_1 b_2 \kappa + 1}}{2
 Knowing ``a``, the tangential equilibrium yields
 ...
 ```math
-\frac{a'}{1-a'} = \frac{b_1 + b_2 a}{V_x (1+a)}  \underbrace{\frac{1}{4\epsilon_\psi F \sin\phi \cos\phi} \frac{c c_2} {2\pi z_a} }_{\overset{\Delta}{=} \kappa'}
+\frac{a'}{1-a'} = \frac{b_1 + b_2 a}{V_x (1+a)}  \underbrace{\frac{p_3}{4\epsilon_\psi F \sin\phi \cos\phi} \frac{c c_y} {2\pi z_a} }_{\overset{\Delta}{=} \kappa'}
 ```
 that we can easily invert for ``a'`` "as usual".
 
