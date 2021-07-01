@@ -183,7 +183,7 @@ Add the velocity induced by the root component of vorticity in the wake to `u`, 
 function eval_ur_0!(u, ψ, r, R, χ; Γr = 1.0)
 
     u[1] += Γr .* sin(χ) .* sin.(ψ) ./ (4 .*pi .* r .* (1.0 .- cos.(ψ) .* sin(χ)) )
-    u[3] += Γr .* cos(χ) ./ (4*pi .* r .* (1.0 .- cos.(ψ) .* sin(χ)) )
+    u[2] += Γr .* cos(χ) ./ (4*pi .* r .* (1.0 .- cos.(ψ) .* sin(χ)) )
 
 end
 
@@ -356,9 +356,9 @@ Add the velocity induced by unit tangantial, longitudinal and root components of
 """
 function eval_u!(u, ψ, r, R, χ, k_u, no, we; γt=1.0, γl=1.0, Γr=1.0 )
 
-    eval_ur_0!( u, ψ, r, R, χ)
-    eval_ut!( u, 0.0, ψ, r, R, χ, k_u, no, we)
-    eval_ul!( u, 0.0, ψ, r, R, χ, k_u, no, we)
+    eval_ur_0!( u, ψ, r, R, χ; Γr)
+    eval_ut!( u, 0.0, ψ, r, R, χ, k_u, no, we; γt)
+    eval_ul!( u, 0.0, ψ, r, R, χ, k_u, no, we; γl)
 
 end
 

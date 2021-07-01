@@ -26,7 +26,7 @@ include("integrals.jl") # the code related to wake models and integrals to compu
 # --------- structs -------------
 
 """
-    Rotor(Rhub, Rtip, B; precone=0.0, turbine=false, 
+    Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, 
         mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub())
 
 Parameters defining the rotor (apply to all sections).  
@@ -49,6 +49,7 @@ struct Rotor{TF, TI, TB,
     Rtip::TF
     B::TI
     precone::TF
+    tilt::TF
     turbine::TB
     mach::T1
     re::T2
@@ -57,8 +58,8 @@ struct Rotor{TF, TI, TB,
 end
 
 # convenience constructor with keyword parameters
-Rotor(Rhub, Rtip, B; precone=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub()
-    ) = Rotor(Rhub, Rtip, B, precone, turbine, mach, re, rotation, tip)
+Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub()
+    ) = Rotor(Rhub, Rtip, B, precone, tilt, turbine, mach, re, rotation, tip)
 
 
 """
@@ -71,9 +72,9 @@ Define sectional properties for one station along rotor
 - `chord::Float64`: corresponding local chord length
 - `theta::Float64`: corresponding twist angle (radians)
 - `af::Function or AFType`: if function form is: `cl, cd = af(alpha, Re, Mach)`
-- `xdef::Float64`: x location when blade is deflected in the blade root frame (m)
-- `ydef::Float64`: y location when blade is deflected in the blade root frame (m)
-- `zdef::Float64`: z=radial location when blade is deflected (m)
+- `x_az::Float64`: x location when blade is deflected in the azimuthal frame (m)
+- `y_az::Float64`: y location when blade is deflected in the azimuthal frame (m)
+- `z_az::Float64`: z=radial location when blade is deflected (m)
 - `coning::Float64`: local conicity angle w.r.t. blade root at that location, in blade root frame (rad), i.e. lcon>0 for a blade deflected downwind
 - `sweep::Float64`: local sweep angle w.r.t. blade root at that location (rad)
 """
@@ -82,11 +83,12 @@ struct Section{TF1, TF2, TF3, TAF, TF4}
     chord::TF2
     theta::TF3
     af::TAF
-    xdef::TF4
-    ydef::TF4
-    zdef::TF4
+    x_az::TF4
+    y_az::TF4
+    z_az::TF4
     coning::TF4
     sweep::TF4
+    #replace with curv object?? TFc<:Curvature
 end  
 
 # convenience constructor for undeflected blade. Avoiding kwargs so that it can still be broadcasted.
@@ -103,33 +105,44 @@ end # This is not always type stable b/c we don't know if the return type will b
 
 
 """
-    OperatingPoint(Vx, Vy, rho; pitch=0.0, mu=1.0, asound=1.0)
+    OperatingPoint(Vx, Vy, Omega, rho)
+    OperatingPoint(Vx, Vy, Vz, Omega, rho; pitch=0.0, mu=1.0, asound=1.0)
 
 Operation point for a rotor.  
 The x direction is the axial direction, and y direction is the tangential direction in the rotor plane.  
-See Documentation for more detail on coordinate systems.
+See Documentation for more detail on coordinate systems. #TODO: expand/rewrite
 `Vx` and `Vy` vary radially at same locations as `r` in the rotor definition.
 
 **Arguments**
 - `Vx::Float64`: velocity in x-direction along blade
 - `Vy::Float64`: velocity in y-direction along blade
-- `pitch::Float64`: pitch angle (radians)
+- `Vz::Float64`: velocity in z-direction along blade
+- `Vhub::Float64`: upstream velocity
+- `Omega::Float64`: rotation rate
 - `rho::Float64`: fluid density
+- `pitch::Float64`: pitch angle (radians)
 - `mu::Float64`: fluid dynamic viscosity (unused if Re not included in airfoil data)
 - `asound::Float64`: fluid speed of sound (unused if Mach not included in airfoil data)
 """
 struct OperatingPoint{TF1, TF2, TF3, TF4, TF5}
     Vx::TF1
     Vy::TF1
+    Vz::TF1
+    Vhub::TF1
+    Omega::TF1
     rho::TF2  # different type to accomodate ReverseDiff
     pitch::TF3  
+    yaw::TF3
+    azimuth::TF3
     mu::TF4
     asound::TF5
     #extend this with gauss legendre stuff? or put a wake object in rotor
 end
 
 # convenience constructor when Re and Mach are not used.
-OperatingPoint(Vx, Vy, rho) = OperatingPoint(Vx, Vy, rho; pitch=zero(rho), mu=one(rho), asound=one(rho)) 
+OperatingPoint(Vx, Vy, Vz, Omega, rho; pitch=zero(rho), yaw=zero(rho), azimuth=zero(rho), mu=one(rho), asound=one(rho)) = OperatingPoint(Vx, Vy, Vz, Vx, Omega, rho, pitch, yaw, azimuth, mu, asound ) 
+
+OperatingPoint(Vx, Vy, Omega, rho; kwargs...) = OperatingPoint(Vx, Vy, zero(Vy), Omega, rho; kwargs...) 
 
 # convenience function to access fields within an array of structs
 function Base.getproperty(obj::Vector{OperatingPoint{TF1, TF2, TF3, TF4, TF5}}, sym::Symbol) where {TF1, TF2, TF3, TF4, TF5}
@@ -199,6 +212,10 @@ function residual(phi, rotor, section, op)
 
     # unpack inputs
     r = section.r
+    # x_az = section.x_az
+    y_az = section.y_az
+    z_az = section.z_az
+
     chord = section.chord
     theta = section.theta
     af = section.af
@@ -207,18 +224,54 @@ function residual(phi, rotor, section, op)
     Rtip = rotor.Rtip
     B = rotor.B
     
+    # external velocities, expressed in the rotor plane c.s.
     Vx = op.Vx
     Vy = op.Vy
+    Vz = op.Vz
+    #TODO:  consider adding displacement velocity here
+
+    #unpack
     rho = op.rho
+    yaw = op.yaw
+    tilt = rotor.tilt
+    azimuth = op.azimuth
+    precone = rotor.precone
     pitch = op.pitch
+    cone = section.coning
+    # swp = section.sweep
     
     # constants
-    sigma_p = B*chord/(2.0*pi*r)
+    sigma_p = B*chord/(2.0*pi*z_az) #assuming all blades have the same loading for the computation of the induction
     sphi = sin(phi)
     cphi = cos(phi)
+    ca = sin(azimuth)
+    sa = cos(azimuth)
+    sc0 = sin(precone)
+    cc0 = cos(precone)
+    sc = sin(cone)
+    cc = cos(cone)
+    sp = sin(pitch)
+    cp = cos(pitch)
+    cY = cos(yaw)
+    cT = cos(rotor.tilt)
+    λ  = op.Vhub / Rtip * op.Omega
+    
+    # blade coordinates in the hub frame ≡ cylinder wake frame, in cylindrical coordinates
+    #  because we neglect the tilt angle in the computation of the epsilon factors
+    y_hu = y_az*ca - z_az*sa
+    z_hu = y_az*sa + z_az*ca
+
+    ψ_Br = atan(z_hu,y_hu) #CAUTION: this is the psi as defined in Branlart2016 (not the same as the psi of the WT)
+    r_Br   = sqrt(y_hu^2+z_hu^2)
+
+    # epsilon ratios
+    a_tmp = (rotor.turbine  ? -.33 : +.1)     #arbitrary choice
+    CT =  4*a_tmp*(1+a_tmp) #TENTATIVE APPROXIMATE VALUE (Branlart2016)
+    ϵx,ϵψ,ϵr = epsilons(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT )
 
     # angle of attack
-    alpha = (theta + pitch) - phi
+    # TODO: theta+pitch should account for deflection -> theta only
+    alpha = theta - phi
 
     # Reynolds/Mach number
     W0 = sqrt(Vx^2 + Vy^2)  # ignoring induction, which is generally a very minor difference and only affects Reynolds/Mach number
@@ -248,6 +301,14 @@ function residual(phi, rotor, section, op)
     cn = cl*cphi - cd*sphi
     ct = cl*sphi + cd*cphi
 
+    # trigonometric factors
+    p1 = (cc*cp*cc0 - sc*sc0)
+    p2 = (cc*cp*sc0 + sc*cc0)
+
+    # changing frame from local airfoil to azm
+    cx = p1 * cn - (sp*cc0) * ct
+    cy = (cc*sp) * cn + (cp) * ct #note: could neglect the first term as we do for the momentum
+    cz =-p2 * cn + sp*sc0 * ct  #note: could also neglect the last term, for the same reason
     # hub/tip loss
     F = 1.0
     if !isnothing(rotor.tip)
@@ -255,8 +316,8 @@ function residual(phi, rotor, section, op)
     end
 
     # sec parameters
-    k = cn*sigma_p/(4.0*F*sphi*sphi)
-    kp = ct*sigma_p/(4.0*F*sphi*cphi)
+    k  = cx*sigma_p/(4.0*F*sphi*sphi) /(ϵx*cY*cT)
+    kp = cy*sigma_p/(4.0*F*sphi*cphi) /(ϵψ)
 
     # --- solve for induced velocities ------
     if isapprox(Vx, 0.0, atol=1e-6)
@@ -285,8 +346,16 @@ function residual(phi, rotor, section, op)
             return 1.0, Outputs()
         end
 
+        b1 = (p1 * Vx - p2 * Vz)
+        b2 = (p1 - p2 * ϵr ) * Vx
+        b3 = k / Vx^2
+
         if k >= -2.0/3  # momentum region
-            a = k/(1 - k)
+            # a = k/(1 - k)
+
+            
+            a   = ((- 2*b1*b2*b3 + 1) - sqrt(4* (b1^2 - b1*b2) *b3 +1)) / (2 * (b2^2*b3 - 1) )
+            a_  = ((- 2*b1*b2*b3 + 1) + sqrt(4* (b1^2 - b1*b2) *b3 +1)) / (2 * (b2^2*b3 - 1) ) #always discard this one?
 
         else  # empirical region
             g1 = F*(2*k - 1) + 10.0/9
@@ -301,6 +370,7 @@ function residual(phi, rotor, section, op)
         end
 
         u = a * Vx
+        Un = b1 + b2 * a
 
         # -------- tangential induction ----------
         if Vx < 0
@@ -311,19 +381,38 @@ function residual(phi, rotor, section, op)
             return 1.0, Outputs()
         end
 
-        ap = kp/(1 + kp)
+        kplhs = Un * cp / ( Vx * (1+a) ) * kp
+
+        # ap = kp/(1 + kp)
+        ap = kplhs/(1 + kplhs)
+
+        println("ap")
+        # println(kplhs)
+        println(ap)
+        println(kp/(1 + kp))
+        println("-")
+
         v = ap * Vy
+        Ut = cp * Vy * (1 - ap)
 
 
         # ------- residual function -------------
-        R = sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap)
+        # R = sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap)
+        R = sin(phi)/Un - cos(phi)/Ut
+
+        println(R)
+        # println(sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap))
     end
 
 
     # ------- loads ---------
-    W = sqrt((Vx + u)^2 + (Vy - v)^2)
-    Np = cn*0.5*rho*W^2*chord
-    Tp = ct*0.5*rho*W^2*chord
+    # W = sqrt((Vx + u)^2 + (Vy - v)^2)
+    W = sqrt(Un^2 + Ut^2)
+
+    #these are the forces in azm c.s.
+    Np = cx*0.5*rho*W^2*chord
+    Tp = cy*0.5*rho*W^2*chord
+    #Zp = ... #Should add the spanwise force for completeness
 
     # The BEM methodology applies hub/tip losses to the loads rather than to the velocities.  
     # This is the most common way to implement a BEM, but it means that the raw velocities are misleading 
@@ -553,7 +642,7 @@ function simple_op(Vinf, Omega, r, rho; pitch=zero(rho), mu=one(rho), asound=one
     Vx = Vinf * cos(precone) 
     Vy = Omega * r * cos(precone)
 
-    return OperatingPoint(Vx, Vy, rho, pitch, mu, asound)
+    return OperatingPoint(Vx, Vy, Omega, rho; pitch=pitch, mu=mu, asound=asound)
 
 end
 
@@ -615,6 +704,8 @@ Compute relative wind velocity components along blade accounting for inflow cond
 - `asound::Float64`: air speed of sound (m/s)
 """
 function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
+    sp = sin(pitch)
+    cp = cos(pitch)
     sy = sin(yaw)
     cy = cos(yaw)
     st = sin(tilt)
@@ -623,44 +714,42 @@ function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw
     ca = cos(azimuth)
     sc =-sin(precone) #mind the minus sign! This is because the rest of this routine is written as if precone was positive forward
     cc = cos(precone)
-    sco = sin(lcon)
-    cco = cos(lcon)
-    ssw = sin(lswp)
-    csw = cos(lswp)
+    # sco = sin(lcon)
+    # cco = cos(lcon)
+    # ssw = sin(lswp)
+    # csw = cos(lswp)
 
     # coordinate in azimuthal coordinate system
-    x_az = xb*cc-zb*sc
-    z_az = xb*sc+zb*cc
+    # CHANGE CONVENTION: 
+    x_az = xb
     y_az = yb
-
+    z_az = zb
+    
     # get section heights in wind-aligned coordinate system
     heightFromHub = (y_az*sa + z_az*ca)*ct - x_az*st
 
     # velocity with shear
     V = Vhub*(1 + heightFromHub/hubHt)^shearExp
 
-    # transform wind from inertial to blade root c.s.
-    # (V,0,0) -> yaw -> tilt -> azimuth -> precone
-    Vwind_xr = V * ((cy*st*ca + sy*sa)*sc + cy*ct*cc)
+    # transform wind from inertial to AZM c.s.
+    # (V,0,0) -> yaw -> tilt -> azimuth 
+    # TODO: use supplemental?
+    Vwind_xr = V * ( cy*ct )
     Vwind_yr = V * (cy*st*sa - sy*ca)
-    Vwind_zr = V * ((cy*st*ca + sy*sa)*cc - cy*ct*sc)
+    Vwind_zr = V * (cy*st*ca + sy*sa) 
 
     # relative wind from rotation in blade root c.s. (i.e., Omega cross r in the azimuthal c.s., then tilted by precone angle)
-    Vrot_xr = -Omega*y_az*sc
+    Vrot_xr = 0.0
     Vrot_yr = Omega*z_az
-    Vrot_zr = -Omega*y_az*cc
+    Vrot_zr =-Omega*y_az
     
     # total velocity
     Vxr = Vwind_xr + Vrot_xr
     Vyr = Vwind_yr + Vrot_yr
     Vzr = Vwind_zr + Vrot_zr
     
-    # transform total relative wind from blade root c.s. to local deflected blade c.s.
-    Vx = cco*Vxr - sco*Vzr 
-    Vy = csw*Vyr + ssw*(sco*Vxr + cco*Vzr)
-
     # operating point
-    return OperatingPoint(Vx, Vy, rho, pitch, mu, asound)
+    return OperatingPoint(Vxr, Vyr, Vzr, Vhub, Omega, rho, pitch, yaw, azimuth, mu, asound)
 
 end
 
@@ -712,9 +801,9 @@ function thrusttorque(rotor, sections, outputs::Vector{TO}) where TO
     fzfull = [0.0; fx; 0.0] 
 
     # radius vector components, from the hub to a location on the delfected blade, in the blade root c.s.:
-    xdef = [s.xdef for s in sections]
-    ydef = [s.ydef for s in sections]
-    zdef = [s.zdef for s in sections]
+    xdef = [s.x_az for s in sections] #TODO: change here, assume sections stuff are in the azm frame!
+    ydef = [s.y_az for s in sections]
+    zdef = [s.z_az for s in sections]
     # switch back to the azimuthal frame, i.e. to the rotor plane:
     xdef_a = cos(rotor.precone) * xdef - sin(rotor.precone) * zdef
     ydef_a = ydef
