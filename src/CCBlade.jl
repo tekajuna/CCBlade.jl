@@ -322,16 +322,28 @@ function residual(phi, rotor, section, op)
     # --- solve for induced velocities ------
     if isapprox(Vx, 0.0, atol=1e-6)
 
+        #no yaw model for this yet:
+        k  = cn*sigma_p/(4.0*F*sphi*sphi)
+        kp = ct*sigma_p/(4.0*F*sphi*cphi)
+
         u = sign(phi)*kp*cn/ct*Vy
         v = zero(phi)
+        Un = Vx + u
+        Ut = Vy - v 
         a = zero(phi)
         ap = zero(phi)
         R = sign(phi) - k
 
     elseif isapprox(Vy, 0.0, atol=1e-6)
+
+        #no yaw model for this yet:
+        k  = cn*sigma_p/(4.0*F*sphi*sphi)
+        kp = ct*sigma_p/(4.0*F*sphi*cphi)
         
         u = zero(phi)
         v = k*ct/cn*abs(Vx)
+        Un = Vx + u
+        Ut = Vy - v
         a = zero(phi)
         ap = zero(phi)
         R = sign(Vx) + kp
@@ -639,7 +651,8 @@ function simple_op(Vinf, Omega, r, rho; pitch=zero(rho), mu=one(rho), asound=one
         error("You passed in an vector for r, but this function does not accept an vector.\nProbably you intended to use broadcasting")
     end
 
-    Vx = Vinf * cos(precone) 
+    #result in the AZM c.s.
+    Vx = Vinf
     Vy = Omega * r * cos(precone)
 
     return OperatingPoint(Vx, Vy, Omega, rho; pitch=pitch, mu=mu, asound=asound)
@@ -670,9 +683,9 @@ and orientation of turbine.  See Documentation for angle definitions.
 """
 function windturbine_op(Vhub, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
 
-    xb = zero(r)
+    xb = r * -sin(precone)  #AZM c.s.
     yb = zero(r)
-    zb = r
+    zb = r * cos(precone)
     lcon = zero(r)
     lswp = zero(r)
     return flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu, asound)
@@ -790,24 +803,31 @@ function thrusttorque(rotor, sections, outputs::Vector{TO}) where TO
     rfull = [rotor.Rhub; rvec; rotor.Rtip]
 
     # angles between the local deflected blade orientation and the rotor plane
-    confull = [0.0; [s.coning for s in sections]; 0.0] .+ rotor.precone #since conicity and precone are two successive transforms, I can just add up the angles
+    # confull = [0.0; [s.coning for s in sections]; 0.0] .+ rotor.precone #since conicity and precone are two successive transforms, I can just add up the angles
+    confull = [0.0; [s.coning for s in sections]; 0.0] 
     swpfull = [0.0; [s.sweep for s in sections]; 0.0]
 
     # extract loading as force components in the rotor plane c.s.,
-    fx, fy, fz = localLoadsToBladeFrame(rotor, sections, outputs, toRotorPlane=true)
+    # fx, fy, fz = localLoadsToBladeFrame(rotor, sections, outputs, toRotorPlane=true)
+    fx, fy, fz = outputs.Np, outputs.Tp, outputs.Np.*0.
+
     # extend to the root and tip
     fxfull = [0.0; fx; 0.0] 
     fyfull = [0.0; fy; 0.0] 
-    fzfull = [0.0; fx; 0.0] 
+    fzfull = [0.0; fz; 0.0]  #TODO: add Fz !!!
 
     # radius vector components, from the hub to a location on the delfected blade, in the blade root c.s.:
     xdef = [s.x_az for s in sections] #TODO: change here, assume sections stuff are in the azm frame!
     ydef = [s.y_az for s in sections]
     zdef = [s.z_az for s in sections]
-    # switch back to the azimuthal frame, i.e. to the rotor plane:
-    xdef_a = cos(rotor.precone) * xdef - sin(rotor.precone) * zdef
+    # # switch back to the azimuthal frame, i.e. to the rotor plane:
+    # xdef_a = cos(rotor.precone) * xdef - sin(rotor.precone) * zdef
+    # ydef_a = ydef
+    # zdef_a = sin(rotor.precone) * xdef + cos(rotor.precone) * zdef
+    xdef_a = xdef
     ydef_a = ydef
-    zdef_a = sin(rotor.precone) * xdef + cos(rotor.precone) * zdef
+    zdef_a = zdef
+
     # guessing the position of the root and the tip, in the azimuthal coordinates, after preconing and deflection
     xdef_tip = xdef_a[end] + sin(confull[end]) * (rotor.Rtip-rvec[end])
     ydef_tip = ydef_a[end] - sin(swpfull[end]) * cos(confull[end]) * (rotor.Rtip-rvec[end])
@@ -971,7 +991,7 @@ function nondim(T, Q, Vhub, Omega, rho, rotor, rotortype)
 
         CT = T / (rho * A * (Omega*Rp)^2)
         CP = P / (rho * A * (Omega*Rp)^3)  # note that CQ = CP
-        FM = CT^(3.0/2)/(sqrt(2)*CP)
+        FM = CT<0. ? NaN : CT^(3.0/2)/(sqrt(2)*CP)
 
         return FM, CT, CP
     end
