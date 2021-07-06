@@ -434,7 +434,7 @@ function epsilons(ψ, r, R, χ, Θ, λ, CT ; n=10000)
     nodes, weights = gausslegendre_0_2π(n)
 
     # prealloc
-    k_u = zeros(3, length(nodes))
+    k_u = zeros(3, n)
     I = zeros(3)
     Iff = zeros(3)
 
@@ -458,6 +458,8 @@ function epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff )
 
     Γr, γl, _ = gammas(r, R, χ, λ, CT )
 
+    I .= 0
+    Iff .= 0
     eval_u!(I, ψ, r, R, χ, k_u, no, we; γt=1.0, γl, Γr )
     eval_ur_ff!(Iff, ψ, r, R, χ, Θ; Γr )
     

@@ -36,6 +36,7 @@ Parameters defining the rotor (apply to all sections).
 - `Rtip::Float64`: tip radius (along blade length)
 - `B::Int64`: number of blades
 - `precone::Float64`: precone angle
+- 
 - `turbine::Bool`: true if using wind turbine conventions
 - `mach::MachCorrection`: correction method for Mach number
 - `re::ReCorrection`: correction method for Reynolds number
@@ -44,7 +45,8 @@ Parameters defining the rotor (apply to all sections).
 """
 struct Rotor{TF, TI, TB, 
         T1 <: Union{Nothing, MachCorrection}, T2 <: Union{Nothing, ReCorrection}, 
-        T3 <: Union{Nothing, RotationCorrection}, T4 <: Union{Nothing, TipCorrection}}
+        T3 <: Union{Nothing, RotationCorrection}, T4 <: Union{Nothing, TipCorrection},
+        TV1, TV2}
     Rhub::TF
     Rtip::TF
     B::TI
@@ -55,11 +57,28 @@ struct Rotor{TF, TI, TB,
     re::T2
     rotation::T3
     tip::T4
+    no::TV1
+    we::TV1
+    k_u::TV2
+    I::TV1
+    Iff::TV1
 end
 
 # convenience constructor with keyword parameters
-Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub()
-    ) = Rotor(Rhub, Rtip, B, precone, tilt, turbine, mach, re, rotation, tip)
+function Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub()
+    )
+    
+    #wke integration nodes
+    n = 10000
+    no, we = gausslegendre_0_2π(n)
+
+    # prealloc
+    k_u = zeros(3, n)
+    I = zeros(3)
+    Iff = zeros(3)
+
+    return Rotor(Rhub, Rtip, B, precone, tilt, turbine, mach, re, rotation, tip, no, we, k_u, I, Iff)
+end
 
 
 """
@@ -267,7 +286,7 @@ function residual(phi, rotor, section, op)
     # epsilon ratios
     a_tmp = (rotor.turbine  ? -.33 : +.1)     #arbitrary choice
     CT =  4*a_tmp*(1+a_tmp) #TENTATIVE APPROXIMATE VALUE (Branlart2016)
-    ϵx,ϵψ,ϵr = epsilons(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT )
+    ϵx,ϵψ,ϵr = epsilons!(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT, rotor.no, rotor.we, rotor.k_u, rotor.I, rotor.Iff )
 
     # angle of attack
     # alpha = theta - phi 
@@ -379,9 +398,15 @@ function residual(phi, rotor, section, op)
         if k >= -2.0/3  # momentum region
             # a = k/(1 - k)
 
+            radical = 4* (b1^2 - b1*b2) *b3 +1
+            if radical < 0.
+                print("Warning: radical <0 :" )
+                println(radical)
+                radical = 0
+            end
+            a_  = ((- 2*b1*b2*b3 + 1) + sqrt(radical)) / (2 * (b2^2*b3 - 1) ) #always discard this one?
+            a   = ((- 2*b1*b2*b3 + 1) - sqrt(radical)) / (2 * (b2^2*b3 - 1) )
             
-            a   = ((- 2*b1*b2*b3 + 1) - sqrt(4* (b1^2 - b1*b2) *b3 +1)) / (2 * (b2^2*b3 - 1) )
-            a_  = ((- 2*b1*b2*b3 + 1) + sqrt(4* (b1^2 - b1*b2) *b3 +1)) / (2 * (b2^2*b3 - 1) ) #always discard this one?
 
         else  # empirical region
             g1 = F*(2*k - 1) + 10.0/9
