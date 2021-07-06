@@ -57,6 +57,7 @@ struct Rotor{TF, TI, TB,
     re::T2
     rotation::T3
     tip::T4
+    wakeCyl::TB
     no::TV1
     we::TV1
     k_u::TV2
@@ -65,7 +66,7 @@ struct Rotor{TF, TI, TB,
 end
 
 # convenience constructor with keyword parameters
-function Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub()
+function Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub(), wakeCyl=false
     )
     
     #wke integration nodes
@@ -77,7 +78,7 @@ function Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, mach=nothing
     I = zeros(3)
     Iff = zeros(3)
 
-    return Rotor(Rhub, Rtip, B, precone, tilt, turbine, mach, re, rotation, tip, no, we, k_u, I, Iff)
+    return Rotor(Rhub, Rtip, B, precone, tilt, turbine, mach, re, rotation, tip, wakeCyl, no, we, k_u, I, Iff)
 end
 
 
@@ -284,9 +285,18 @@ function residual(phi, rotor, section, op)
     r_Br   = sqrt(y_hu^2+z_hu^2)
 
     # epsilon ratios
-    a_tmp = (rotor.turbine  ? -.33 : +.1)     #arbitrary choice
-    CT =  4*a_tmp*(1+a_tmp) #TENTATIVE APPROXIMATE VALUE (Branlart2016)
-    ϵx,ϵψ,ϵr = epsilons!(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT, rotor.no, rotor.we, rotor.k_u, rotor.I, rotor.Iff )
+    if rotor.wakeCyl
+        a_tmp = (rotor.turbine  ? -.33 : +.1)     #arbitrary choice
+        CT =  4*a_tmp*(1+a_tmp) #TENTATIVE APPROXIMATE VALUE (Branlart2016)
+        ϵx,ϵψ,ϵr = epsilons!(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT, rotor.no, rotor.we, rotor.k_u, rotor.I, rotor.Iff )
+    
+        #TODO: double check yaw convention: For positive chi, Branlart's x+ goes in the same direction as the wake, that is in my hub's y+. But I might use the wrong yaw convention.
+
+    else   
+        ϵx = 1.
+        ϵψ = 1.
+        ϵr = 0.
+    end
 
     # angle of attack
     # alpha = theta - phi 
@@ -400,8 +410,10 @@ function residual(phi, rotor, section, op)
 
             radical = 4* (b1^2 - b1*b2) *b3 +1
             if radical < 0.
-                print("Warning: radical <0 :" )
-                println(radical)
+                if radical > 1e-6
+                    print("Warning: radical <0 :" )
+                    println(radical)
+                end
                 radical = 0
             end
             a_  = ((- 2*b1*b2*b3 + 1) + sqrt(radical)) / (2 * (b2^2*b3 - 1) ) #always discard this one?

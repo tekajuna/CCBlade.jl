@@ -135,7 +135,7 @@ such that
 \begin{aligned}
 \epsilon_x &= 1 / (2 I_x) \\
 \epsilon_\psi &= \frac12 \frac{I_{\psi_2}}{I_\psi} \\ 
-\epsilon_r &= 4 I_x I_r 
+\epsilon_r &= I_r / I_x 
 \end{aligned}
 ```
 

@@ -465,7 +465,7 @@ function epsilons!(ψ, r, R, χ, Θ, λ, CT, no, we, k_u, I, Iff )
     
     ϵx = .5 / I[1]
     ϵψ = .5 * Iff[2] / I[2]
-    ϵr = 4. * I[1] * I[3]
+    ϵr = I[3] / I[1]
 
     return ϵx,ϵψ,ϵr
 end
