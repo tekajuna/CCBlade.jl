@@ -27,7 +27,7 @@ include("integrals.jl") # the code related to wake models and integrals to compu
 
 """
     Rotor(Rhub, Rtip, B; precone=0.0, tilt=0.0, turbine=false, 
-        mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub())
+        mach=nothing, re=nothing, rotation=nothing, tip=PrandtlTipHub(), wakeCyl=false)
 
 Parameters defining the rotor (apply to all sections).  
 
@@ -42,6 +42,7 @@ Parameters defining the rotor (apply to all sections).
 - `re::ReCorrection`: correction method for Reynolds number
 - `rotation::RotationCorrection`: correction method for blade rotation
 - `tip::TipCorrection`: correction method for hub/tip loss
+- `wakeCyl::Bool`: true to use the cylinder wake model
 """
 struct Rotor{TF, TI, TB, 
         T1 <: Union{Nothing, MachCorrection}, T2 <: Union{Nothing, ReCorrection}, 
@@ -84,20 +85,30 @@ end
 
 """
     Section(r, chord, theta, af)
+    Section(chord, theta, af, x_az, y_az, z_az, coning, sweep)
+    Section(chord, theta, af, precone, x_def, y_def, z_def, coning, sweep)
 
 Define sectional properties for one station along rotor
     
 **Arguments**
-- `r::Float64`: radial location along blade
+- `r::Float64`: radial location along blade (i.e. distance between section and rotation shaft)
 - `chord::Float64`: corresponding local chord length
 - `theta::Float64`: corresponding twist angle (radians)
 - `af::Function or AFType`: if function form is: `cl, cd = af(alpha, Re, Mach)`
 - `x_az::Float64`: x location when blade is deflected in the azimuthal frame (m)
 - `y_az::Float64`: y location when blade is deflected in the azimuthal frame (m)
 - `z_az::Float64`: z=radial location when blade is deflected (m)
-- `coning::Float64`: local conicity angle w.r.t. blade root at that location, in blade root frame (rad), i.e. lcon>0 for a blade deflected downwind
+- `coning::Float64`: total coning angle w.r.t. azimuthal frame (rad), i.e. lcon>0 for a blade deflected downwind
 - `sweep::Float64`: local sweep angle w.r.t. blade root at that location (rad)
+or 
+- `precone::Float`: precone angle (rad)
+- `x_def::Float64`: x location when blade is deflected, in the blade root frame (m)
+- `y_def::Float64`: y location when blade is deflected, in the blade root frame (m)
+- `z_def::Float64`: z location when blade is deflected, in the blade root frame (m)
+- `coning::Float64`: local coning angle w.r.t. blade root at that location, in blade root frame (rad), i.e. lcon>0 for a blade deflected downwind
 """
+Section
+
 struct Section{TF1, TF2, TF3, TAF, TF4}
     r::TF1  # different types b.c. of dual numbers.  often r is fixed, while chord/theta vary.
     chord::TF2
@@ -115,8 +126,19 @@ end
 Section(r, chord, theta, af
     ) = Section(r, chord, theta, af, zero(r), zero(r), r, zero(r), zero(r))
 
-Section(r, chord, theta, af, xdef, ydef, zdef, coning, sweep
-    ) = Section(r, chord, theta, af, xdef, ydef, zdef, coning, sweep)
+Section(chord, theta, af, x_az, y_az, z_az, coning, sweep) = begin
+    r = sqrt( y_az^2 + z_az^2 )
+    Section(r, chord, theta, af, x_az, y_az, z_az, coning, sweep)
+end
+
+Section(chord, theta, af, precone, x_def, y_def, z_def, coning, sweep) = begin
+    x_az = x_def * cos(precone) - z_def * sin(-precone)
+    y_az = y_def
+    z_az = x_def * sin(precone) + z_def * cos(-precone) 
+    coning += precone  #total coning includes both local coning and precone (precone is defined as opposed to coning)  
+    r = sqrt( y_az^2 + z_az^2 )
+    Section(r, chord, theta, af, x_az, y_az, z_az, coning, sweep)
+end
 
 # convenience function to access fields within an array of structs
 function Base.getproperty(obj::Vector{Section{TF1, TF2, TF3, TAF, TF4}}, sym::Symbol) where {TF1, TF2, TF3, TAF, TF4}
@@ -714,7 +736,7 @@ end
 """
     windturbine_op(Vhub, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=1.0, asound=1.0)
 
-Compute relative wind velocity components along blade accounting for inflow conditions
+Compute relative wind velocity components along a straight blade accounting for inflow conditions
 and orientation of turbine.  See Documentation for angle definitions.
 
 **Arguments**
@@ -734,12 +756,12 @@ and orientation of turbine.  See Documentation for angle definitions.
 """
 function windturbine_op(Vhub, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
 
-    xb = r * -sin(precone)  #AZM c.s.
-    yb = zero(r)
-    zb = r * cos(precone)
+    xaz = r * sin(precone)  #AZM c.s.
+    yaz = zero(r)
+    zaz = r * cos(precone)
     lcon = zero(r)
     lswp = zero(r)
-    return flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu, asound)
+    return flexturbine_op(Vhub, Omega, pitch, xaz, yaz, zaz, yaw, tilt, azimuth, hubHt, shearExp, rho, mu, asound)
 end
 
 """
@@ -752,12 +774,9 @@ Compute relative wind velocity components along blade accounting for inflow cond
 - `Vhub::Float64`: freestream speed at hub (m/s)
 - `Omega::Float64`: rotation speed (rad/s)
 - `pitch::Float64`: pitch angle (rad)
-- `xb::Float64`: x location where inflow is computed in the blade root frame (m)
-- `yb::Float64`: y location where inflow is computed in the blade root frame (m)
-- `zb::Float64`: z=radial location where inflow is computed (m)
-- `lcon::Float64`: local conicity angle w.r.t. blade root at that location, in blade root frame (rad), i.e. lcon>0 for a blade deflected downwind
-- `lswp::Float64`: local sweep angle w.r.t. blade root at that location (rad)
-- `precone::Float64`: turbine precone angle (rad)
+- `x_az::Float64`: x location where inflow is computed in the azimuthal frame (m)
+- `y_az::Float64`: y location where inflow is computed in the azimuthal frame (m)
+- `z_az::Float64`: z location where inflow is computed in the azimuthal frame (m)
 - `yaw::Float64`: turbine yaw angle (rad)
 - `tilt::Float64`: turbine tilt angle (rad)
 - `azimuth::Float64`: blade azimuth angle to evaluate at (rad)
@@ -766,8 +785,12 @@ Compute relative wind velocity components along blade accounting for inflow cond
 - `rho::Float64`: air density (kg/m^3)
 - `mu::Float64`: air viscosity (Pa * s)
 - `asound::Float64`: air speed of sound (m/s)
+or
+- `section::Section`: a section struct
 """
-function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
+flexturbine_op
+
+function flexturbine_op(Vhub, Omega, pitch, x_az, y_az, z_az, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
     
     sy = sin(yaw)
     cy = cos(yaw)
@@ -775,18 +798,6 @@ function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw
     ct = cos(tilt)
     sa = sin(azimuth)
     ca = cos(azimuth)
-    sc =-sin(precone) #mind the minus sign! This is because the rest of this routine is written as if precone was positive forward
-    cc = cos(precone)
-    # sco = sin(lcon)
-    # cco = cos(lcon)
-    # ssw = sin(lswp)
-    # csw = cos(lswp)
-
-    # coordinate in azimuthal coordinate system
-    # CHANGE CONVENTION: 
-    x_az = xb
-    y_az = yb
-    z_az = zb
     
     # get section heights in wind-aligned coordinate system
     heightFromHub = (y_az*sa + z_az*ca)*ct - x_az*st
@@ -817,13 +828,13 @@ function flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw
 end
 
 function flexturbine_op(Vhub, Omega, pitch, section::Section{TF1, TF2, TF3, TAF, TF4}, 
-                        precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho)) where {TF1, TF2, TF3, TAF, TF4}
-    xb = section.xdef
-    yb = section.ydef
-    zb = section.zdef
-    lcon = section.coning
-    lswp = section.sweep
-    return flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu, asound)
+                        yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho)) where {TF1, TF2, TF3, TAF, TF4}
+    x_az = section.x_az
+    y_az = section.y_az
+    z_az = section.z_az
+    # lcon = section.coning #WARNING: depending on what we choose to store in Sections, this contains precone or not.
+    # lswp = section.sweep
+    return flexturbine_op(Vhub, Omega, pitch, x_az, y_az, z_az, yaw, tilt, azimuth, hubHt, shearExp, rho, mu, asound)
 end
 # -------------------------------------
 
@@ -961,7 +972,7 @@ function localLoadsToBladeFrame(rotor, sections, outputs::Vector{TO}; toRotorPla
     pcn = toRotorPlane ? rotor.precone : zero(rotor.precone)
     
     # angles between the local deflected blade orientation and the blade root c.s.
-    con = [s.coning + pcn for s in sections] 
+    con = [s.coning + pcn for s in sections] #coning positive bckwd
     swp = [s.sweep for s in sections]
 
     # switch loads from local deflected blade c.s. to azimuthal c.s. (that is, the blade root c.s. or rotor plane)
