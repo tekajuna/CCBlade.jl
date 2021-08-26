@@ -166,7 +166,7 @@ See Documentation for more detail on coordinate systems. #TODO: expand/rewrite
 - `mu::Float64`: fluid dynamic viscosity (unused if Re not included in airfoil data)
 - `asound::Float64`: fluid speed of sound (unused if Mach not included in airfoil data)
 """
-struct OperatingPoint{TF1, TF2, TF3, TF4, TF5}
+struct OperatingPoint{TF1, TF2, TF3, TF4, TF5, TF6, TF7}
     Vx::TF1
     Vy::TF1
     Vz::TF1
@@ -174,10 +174,10 @@ struct OperatingPoint{TF1, TF2, TF3, TF4, TF5}
     Omega::TF1
     rho::TF2  # different type to accomodate ReverseDiff
     pitch::TF3  
-    yaw::TF3
-    azimuth::TF3
-    mu::TF4
-    asound::TF5
+    yaw::TF4
+    azimuth::TF5
+    mu::TF6
+    asound::TF7
     #extend this with gauss legendre stuff? or put a wake object in rotor
 end
 
