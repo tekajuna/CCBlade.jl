@@ -132,10 +132,10 @@ Section(chord, theta, af, x_az, y_az, z_az, coning, sweep) = begin
 end
 
 Section(chord, theta, af, precone, x_def, y_def, z_def, coning, sweep) = begin
-    x_az = x_def * cos(precone) - z_def * sin(-precone)
+    x_az = x_def * cos(precone) - z_def * sin(precone)
     y_az = y_def
-    z_az = x_def * sin(precone) + z_def * cos(-precone) 
-    coning += precone  #total coning includes both local coning and precone (precone is defined as opposed to coning)  
+    z_az = x_def * sin(precone) + z_def * cos(precone) 
+    coning -= precone  #total coning includes both local coning and precone (precone is defined as opposed to coning)  
     r = sqrt( y_az^2 + z_az^2 )
     Section(r, chord, theta, af, x_az, y_az, z_az, coning, sweep)
 end
@@ -288,8 +288,8 @@ function residual(phi, rotor, section, op)
     cphi = cos(phi)
     ca = sin(azimuth)
     sa = cos(azimuth)
-    sc0 = sin(precone)
-    cc0 = cos(precone)
+    sc0 = sin(-precone)
+    cc0 = cos(-precone)
     sc = sin(cone)
     cc = cos(cone)
     sp = sin(pitch)
@@ -360,8 +360,8 @@ function residual(phi, rotor, section, op)
     # p5 = cc*sp
     # p6 = sc0*sp
     #APPROX PITCH:
-    p1 = cos(precone+cone)
-    p2 = sin(precone+cone)
+    p1 = cos(-precone+cone)
+    p2 = sin(-precone+cone)
     p3 = 1. 
     p4 = 0.
     p5 = 0.
@@ -756,7 +756,7 @@ and orientation of turbine.  See Documentation for angle definitions.
 """
 function windturbine_op(Vhub, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho, mu=one(rho), asound=one(rho))
 
-    xaz = r * sin(precone)  #AZM c.s.
+    xaz = r * -sin(precone)  #AZM c.s.
     yaz = zero(r)
     zaz = r * cos(precone)
     lcon = zero(r)
@@ -972,7 +972,7 @@ function localLoadsToBladeFrame(rotor, sections, outputs::Vector{TO}; toRotorPla
     pcn = toRotorPlane ? rotor.precone : zero(rotor.precone)
     
     # angles between the local deflected blade orientation and the blade root c.s.
-    con = [s.coning + pcn for s in sections] #coning positive bckwd
+    con = [s.coning - pcn for s in sections] #coning positive bckwd
     swp = [s.sweep for s in sections]
 
     # switch loads from local deflected blade c.s. to azimuthal c.s. (that is, the blade root c.s. or rotor plane)

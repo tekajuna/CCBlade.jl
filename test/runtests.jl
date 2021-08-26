@@ -15,7 +15,7 @@ Vhub = 1.
 #--turbine 1, non-rotating
 yaw = 0.
 tilt = 0.
-precone = -30. *pi/180.
+precone = 30. *pi/180.
 Omega = 0.
 
 #---condition 1
@@ -57,7 +57,7 @@ ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, t
 #--turbine 2, non-rotating, yawed
 yaw = 90. *pi/180.
 tilt = 0.
-precone = -30. *pi/180.
+precone = 30. *pi/180.
 Omega = 0.
 
 #---condition 4
@@ -75,7 +75,7 @@ ops = flexturbine_op(Vhub, Omega, pitch, xb, yb, zb, lcon, lswp, precone, yaw, t
 Vhub = 0.
 
 #--turbine 3, rotating
-precone = -30. *pi/180.
+precone = 30. *pi/180.
 Omega = 1. / R
 
 #---condition 5
@@ -394,7 +394,7 @@ end
 Rhub = 1.5
 Rtip = 63.0
 B = 3
-precone = -2.5*pi/180
+precone = 2.5*pi/180
 
 rotor = Rotor(Rhub, Rtip, B; precone=precone, turbine=true)
 

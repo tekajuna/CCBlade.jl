@@ -13,7 +13,7 @@ using CCBlade
     Rhub = 1.5
     Rtip = 63.0
     B = 3
-    precone = -2.5*pi/180
+    precone = 2.5*pi/180
     tilt = 5.0*pi/180
     yaw = 0.0*pi/180
     
@@ -24,14 +24,14 @@ using CCBlade
     #wakecyl=true
     # tilt 0, precone 0 : some difference of course
     # tilt 5, precone 0 : very close
-    # tilt 0, precone -2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear)
-    # tilt 5, precone -2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear+tilt)
+    # tilt 0, precone 2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear)
+    # tilt 5, precone 2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear+tilt)
 
     #wakecyl=false
     # tilt 0, precone 0 : some difference of course, same as wakecyl
     # tilt 5, precone 0 : very close, same
-    # tilt 0, precone -2.5 : very close, CT/CP slightly above
-    # tilt 5, precone -2.5 : wrong
+    # tilt 0, precone 2.5 : very close, CT/CP slightly above
+    # tilt 5, precone 2.5 : wrong
     
     # rotor = Rotor(Rhub, Rtip, B, precone=precone, turbine=true)
     rotor = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=true)
