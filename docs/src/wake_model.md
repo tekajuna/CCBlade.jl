@@ -49,8 +49,8 @@ Similarly, the axial velocity induced by the root vortex ``u_{z,r}`` (assuming `
 
 From here on, we resume with standard wind-turbine conventions regarding frame of references.
 
-Crucially, we still assume the independance of annular sections on the rotor. A formal motivation for this is given in [Branlard2015, sect.4.3] for the case of the straight cylinder wake model. In practice this means the following:
-every anular section has an assocaited bound vorticity ``\gamma_b`` that corresponds to the circulation of the blades at that location. Neglecting the circulation of all the other anular sections, the vorticity in all other wake components may be expressed as a function of the bound vorticity, by the Kelvin theorem (circulation is conserved). We thus have (see also [Branlard2016, 2.3]):
+Crucially, we still assume the independance of annular sections on the rotor (even though it is provably doubtful) we want to keep a simple numerical method. A formal motivation for this is given in [Branlard2015, sect.4.3] for the case of the straight cylinder wake model. In practice this means the following:
+every anular section has an associated bound vorticity ``\gamma_b`` that corresponds to the circulation of the blades at that location. Neglecting the circulation of all the other anular sections, the vorticity in all other wake components may be expressed as a function of the bound vorticity, by the Kelvin theorem (circulation is conserved). We thus have (see also [Branlard2016, 2.3]):
 ```math
 \Gamma_r = -2\pi r \gamma_b 
 ```
@@ -89,7 +89,7 @@ u_r = u_{r,t} + u_{r,l} \overset{\Delta}{=} I_r \gamma_t
 ```
 Notice that the root vortex never induces radial velocity.
 
-The ``I`` factors are the previously-mentioned integrals that only depend on geometric factors: ``(r,R,\psi,x,\chi)``. In practice, in spite of the blade bending, we always evaluate ``I`` at ``x=0``. The reason is that the head of the cylinder model is flat and passes through the rotor hub. Hence, it makes more sense to evaluate induced velocity in the rotor plane. We also neglect the influence of the tilt angle on ``I``.
+The ``I`` factors are the previously-mentioned integrals that only depend on geometric factors: ``(r,R,\psi,x,\chi)``. In practice, in spite of the blade bending and/or (pre)cone, we always evaluate ``I`` at ``x=0``. The reason is that the head of the cylinder model is flat and passes through the rotor hub. Hence, it makes more sense to evaluate induced velocity in the rotor plane. We also neglect the influence of the tilt angle on ``I``.
 
 !!! danger
     TODO: for completeness, write the expressions for ``I_\cdot``, and be careful with the change of convention between Branlart and standard WT.
@@ -122,7 +122,7 @@ u_r &= I_r \gamma_t \\
 ```
 where, again, the ``I`` factors are computed numerically and do not depend on ``\gamma``
 
-For the sequel, it will be convenient to define `epsilon factors`. The conventional result generally corresponds to ``\epsilon_x=1``.
+For the sequel, it will be convenient to define `epsilon factors`. The conventional result generally used in BEM corresponds to ``\epsilon_x= \epsilon_\psi =1``. Conventional BEM also neglects ``u_r`` (i.e., ``\epsilon_r=0`` ).
 ```math
 \begin{aligned}
 u_x \epsilon_x &= \gamma_t / 2 \\
@@ -161,7 +161,7 @@ such that
     although some authors proposed to use a factor ``15\pi/64`` instead (see [Ning2015]).
     Other models can be found in the litterature (see e.g. [Micallef2016])
 
-    In the present model, ``u_x`` is influenced by the various component of vorticity in the wake. In that sense it is mode general. However, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} = \frac{\gamma_t}{2} (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, in the case where we consider only the velocity induced by the tangential component of the tip vorticity (neglecting all the other wake components), and linearizing ``K_{x,t}``, we finally recover the `Coleman et al.` model.
+    In the present model, ``u_x`` is influenced by the various component of vorticity in the wake (see the above equation ``u_x = u_{x,t} + u_{x,r} + u_{x,l}``). In that sense it is more general. However, we can establish a link with the above simple models if we we consider only the velocity induced by the tangential component of the tip vorticity (neglecting ``u_{x,r}`` and ``u_{x,l}``).  Indeed, the velocity induced by the tangential vorticity in the cylinder also has the form ``u_{x,t} = \frac{\gamma_t}{2} (1 + K_{x,t} \sin\psi)``, where ``K_{x,t}`` takes the form of an integral that needs to be computed numerically. Furthermore, we can show that the linearization of ``K_{x,t}`` leads us to recover the exact same expression for ``K`` as the `Coleman et al.` model.
 
 
 
@@ -178,9 +178,9 @@ We refer the interested reader to [Branlard2015, sect.4.2] (and refs. therein) f
 !!! warning
     The sign conventions used here may depend on the type of operation (turbine/propeller). We follow the same definitions as in [Ning2021]. 
 
-We account for a yaw angle ``\chi_0``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a \approx z_a``. 
+We account for a yaw angle ``\chi_0``. At a given radial station ``r`` measured along the blade, the local coning and sweep angles are ``\beta`` and ``s``, and the distance to the rotor shaft is ``r_a \approx z_a`` (see figures below). 
 
-The main idea of this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations. **The axial momentum (both axial and angular) is expressed in the direction normal to the rotor plane** (see reference frames hereafter).
+The main idea behind this development is to relate the local forces on the blades (which depend on the 2D aerodynamics expressed in a plane normal to the deflected blade) to the updated  momentum equations. **The axial momentum (both axial and angular) is expressed in the direction normal to the rotor plane** (see reference frames hereafter).
 
 
 !!! note
@@ -191,45 +191,81 @@ The main idea of this development is to relate the local forces on the blades (w
     ```
 
     !!! danger
-        :warning: should clarify if ``a = u_x/V_\infty`` or ``a = u_{x_0}/V_\infty`` in that formula
+        :warning: should clarify if ``a = u_x/V_\infty`` or ``a = u_{x_2}/V_\infty`` in that formula
     
     ![](yaw_skew.png)
 
 !!! note
-    Notations: ``V`` are external velocities (from the inflow and the rotation); ``u`` are wake-induced velocities; ``U`` are the sum of ``V`` and ``U``.
+    Notations: ``V_i`` are external velocities (from the inflow and the rotation); ``u_i`` are wake-induced velocities; ``U_i`` are the sum of ``V_i`` and ``u_i``.
 
 ### Reference frames
 
-Some figures are modified from [Ning2015].
-The chaining between frames and corresponding rotations and angle is the following:
+We present some figures modified from [Ning2015].
+
+Looking at the turbine from a multi-body perspective, the chaining between frames and corresponding rotations and angle is the following:
 
 ![](frames.png)
 
-**Rotor related frame:**
+For the purpose of the present BEM implementation however, we introduce an approximation that corresponds to slightly altering that order, as follows:
+
+![](frames_tweaked.png)
+
+What this approximation does is that it considers that the pitch actuation results in uniformly modifying the airfoil pitch angle along the blade span, as if it was locally twisted instead of being 'rigidly' rotated at the root. This essentially affects deformed/non-straight blades, and does not change anything  for straight blades.
+We will see hereafter that this assumption his crucial in decoupling tangential and axial inductions, resulting in equations that can be solved sequentially.
+
+**Rotor-related frame:**
 
 ![](rotor_frame.png)
 
 We will express the momentum in the direction normal to the rotor plane (after yaw and tilt, **before coning and sweep**). That is where our ``x,y,z \equiv x_{az},y_{az},z_{az}`` coordinate system is defined. 
 
+!!! note
+    Definitions (caution: tilt and precone are inverted w.r.t. AeroDyn!):
+    - positive tilt results in rotor facing upwards (upwind turbines have ``\Theta > 0``)
+    - positive precone results in blade leaning forward (upwind turbines have ``\beta_0 > 0``)
+    - positive yaw results in the wind coming from your right if you sit on top of the hub facing the wind
 
-**Blade related frames:**
+    !!! danger
+        TODO: check yaw convention throughout the code
+    
+    (Hence, for ``\psi=0``, ``\beta=-\beta_0`` gives the same results ``\forall \beta``)
+
+
+**Blade related-frames:**
+
+The blade root frame is handy because we expect that any structural code will output the blade deformation in those coordinates. For a straight blade, we will have ``z_a= r`` and ``x_a = y_a = 0``.
 
 ![](blade_frame.png)
 
-Note that ``\beta`` is the local coning angle (that accounts only for flapwise bending).
+Note that ``\beta`` is the local coning angle (that accounts only for flapwise bending). 
 
-Given a position on the rotor parametrized by ``x_a,y_a,z_a``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x,y,z``) frame. 
+!!! note
+    Another potentially useful assumption is *sweep through shearing* that replaces ``r,t`` with ``r',t'``. This consists in neglecting the change of orientation of the blade related to sweep, leaving ``r'`` parallel to ``z_a``.
+
+    !!! danger
+        Need to assess the necessity of this assumption.
+
+!!! note
+    Definitions
+    - positive conicity is a positive rotation about `y`, that is downwards (i.e., opposed to the precone!)
+    - positive sweep is a positive rotation about `x`
+
+### External velocity at the blade
+
+Given the position of a blade segment in the rotor plane parametrized by ``y_{az}=y_a ,z_{az} = z_a \cos(\beta_0)``, and rotor info ``\psi,\Theta,\chi_0``, one can obtain the componnents of the upstream velocity and rotational velocity in the rotor (``x=x_{az},y=y_{az},z=z_{az}``) frame. 
 ```math
 \begin{aligned}
 V_x &= V_\infty \cos(\chi_0) \cos(\Theta) \\
-V_y &= V_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega z_a \\
+V_y &= V_\infty (\cos(\chi_0) \sin(\Theta) \sin(\psi) - \sin(\chi_0) \cos(\psi) ) + \Omega \cos(\beta_0) z_a \\
 V_z &= V_\infty (\cos(\chi_0) \sin(\Theta) \cos(\psi) + \sin(\chi_0) \sin(\psi) ) - \Omega y_a
 \end{aligned}
 ```
-This is essentially Eq.28 in [Ning2015], without precone (since we are interested in velocities in the rotor plane). 
+This is essentially Eq.28 in [Ning2015], but expressing the velocities in the frame *before* precone (and not after), since we are interested in velocities in the rotor plane. ``V_\infty`` may include a dependency on ``z_i`` to account for shear.
 
 !!! warning
     Theoretically, ``y_a`` should be accounted for in the above expression since it may introduce components of rotational velocity in both ``V_y,V_z``. We choose to neglect that effect since the sweep deflection is likely small.
+    !!! danger
+        TODO: CHECK THAT WE NEED THIS, because currently it is coded in the op routine  
 
 Note that in the basic BEM, induction factors are defined with respect to ``V_infty`` and ``R\Omega`` respectively.
 Since all unsteady effects are here neglected, we express the BEM equations by assuming we can replace these with the instantaneous velocities ``V_x,V_y``.
@@ -466,11 +502,13 @@ that we can easily invert for ``a'`` "as usual".
 ## TODO
 
 - [ ] write the expressions for ``I``
+- [ ] checks sign consistency between wake model and BEM: psi, yaw, tilt
 - [ ] check sign consistency of ``a``, etc. with Ning2021
 - [ ] shall we define a=ux/Uinf or a=ux/Ux ?
 - [ ] smoothly connect to the high induction model. Treat the particular cases ofsome missing velocities
-- [ ] make sure the frames I use (and essentially psi) is consistent. Definitions of all angles (precone positive fwd or bckwd?)
 - [ ] would it be better to pre-evaluate epsilon and look it up during BEM computation, or can we just keep re-evaluating it on the run?
+- [ ] update `openmdao/python/ccblade` 
+- [ ] test the whole method with con/swp.
 
 ## References
 
