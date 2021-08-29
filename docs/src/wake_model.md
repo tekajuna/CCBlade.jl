@@ -485,6 +485,20 @@ Knowing ``a``, the tangential equilibrium yields
 ```
 that we can easily invert for ``a'`` "as usual".
 
+
+!!! note
+    **Relation with the original BEM**
+    The main difference to remember is that, with the present expression of the BEM equation, everything is written in the blade azimuthal frame whereas the original implementation considered the thrust in the blade root frame (i.e. normal to the blade and not normal to the rotor). We 
+
+    However, by considering the following changes, the present implementation reverts to the original CCBlade implementation:
+    - the wake epsilon factor take their original value: ``\epsilon_x= \epsilon_\psi = 1, \epsilon_r = 0``
+    - tilt and yaw do not enter the in ``\kappa,\kappa'``: ``\cos(\Theta) = \cos(\chi) = 1``, 
+    - ```sigma_p = B*chord/(2.0*pi*r)``` where ```r``` does not account for precone. 
+    - the velocity normal to the blade is ```Vx = (cos(precone) * Vx_az - sin(precone) * Vz_az)```. Everywhere else, we set ```p1 = 1, p2 = 0``` such that ```cn = cx, ct = cy, b2 = b1 = Vx```
+    - the local thrust (```Np```) is rotated by the precone angle before the integration of the rotor thrust.
+    
+    For backward compatibility, this remains the default behavior of the code. The new implementation is turned on only when passing ```wakeCyl = true``` to the rotor object.
+
 ### Summary of the assumptions
 - we neglect the influence of the bound vortices of the other blades on the current blade. This is valid if all the blade have the same circulation, which is not exactly the case in yaw or with shear.
 - we neglect the influence of the longitudinal vorticity components of the tip cylinder on the velocity measured normal to the disk 

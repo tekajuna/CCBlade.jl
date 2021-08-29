@@ -18,7 +18,14 @@ using CCBlade
     yaw = 0.0*pi/180
     
     # ============ PLAY WITH THIS : ==========================
-    # precone = 0.
+    #THESE 3 SHOULD BE THE SAME AND THEY ARE NOT -> bug in precone???
+    precone = 0.
+    tilt = 2.5*pi/180 # -> works
+
+    # precone = 2.5*pi/180
+    # tilt = 5.0*pi/180
+
+    # precone = -2.5*pi/180
     # tilt = 0.
 
     #wakecyl=true
@@ -33,8 +40,11 @@ using CCBlade
     # tilt 0, precone 2.5 : very close, CT/CP slightly above
     # tilt 5, precone 2.5 : wrong
     
-    # rotor = Rotor(Rhub, Rtip, B, precone=precone, turbine=true)
-    rotor = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=true)
+    Rtip_def = Rtip*cos(precone)
+    Rhub_def = Rhub*cos(precone)
+
+    rotor = Rotor(Rhub, Rtip, B, precone=precone, turbine=true)
+    # rotor = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=true)
     
     r = [2.8667, 5.6000, 8.3333, 11.7500, 15.8500, 19.9500, 24.0500,
         28.1500, 32.2500, 36.3500, 40.4500, 44.5500, 48.6500, 52.7500,
@@ -47,7 +57,7 @@ using CCBlade
     # Define airfoils.  In this case we have 8 different airfoils that we load into an array.
     # These airfoils are defined in files.
     aftypes = Array{AlphaAF}(undef, 8)
-    aftypes[1] = AlphaAF("airfoils/Cylinder1.dat", radians=false)  #--------- ???  not found??
+    aftypes[1] = AlphaAF("airfoils/Cylinder1.dat", radians=false) 
     aftypes[2] = AlphaAF("airfoils/Cylinder2.dat", radians=false)
     aftypes[3] = AlphaAF("airfoils/DU40_A17.dat", radians=false)
     aftypes[4] = AlphaAF("airfoils/DU35_A17.dat", radians=false)
@@ -62,7 +72,7 @@ using CCBlade
     # create airfoil array 
     airfoils = aftypes[af_idx]
     
-    sections = Section.(r, chord, theta, airfoils)
+    sections = Section.(r, chord, theta, airfoils, precone)
     
     # operating point for the turbine
     
@@ -73,14 +83,53 @@ using CCBlade
     Vinf = 10.0
     tsr = 7.55
     # tsr = 12. #...........................
-    rotorR = Rtip*cos(precone)
-    Omega = Vinf*tsr/rotorR
+    Omega = Vinf*tsr/Rtip_def
     azimuth = 0.0*pi/180
     rho = 1.225
     pitch = 0.0
     
 
-    # ====================== SINGLE OP ==========================================================
+# #### CHECK residual
+
+# # TODO: COMPARE precone,tilt combinations
+# precone = 0.
+# tilt = 2.5*pi/180 # -> works
+# Rtip_def = Rtip*cos(precone)
+# # Rhub_def = Rhub*cos(precone)
+# # sections = Section.(r, chord, theta, airfoils, precone)
+# sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), cos(precone)*r, zero(r), zero(r) )
+# # sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), r, zero(r), zero(r) )
+# Omega = Vinf*tsr/Rtip_def
+# op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+#     # rotor1 = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=false)
+#     rotor1 = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=false)
+#     resi1,_ = CCBlade.residual(10*pi/180, rotor1, sections[1], op[1]);
+
+# println(op[1])
+
+# precone = 2.5*pi/180
+# tilt = 5.0*pi/180
+# Rtip_def = Rtip*cos(precone)
+# # Rhub_def = Rhub*cos(precone)
+# # sections = Section.(r, chord, theta, airfoils, precone)
+# sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), cos(precone)*r, zero(r), zero(r) )
+# # sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), r, zero(r), zero(r) )
+# Omega = Vinf*tsr/Rtip_def
+# op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+#     # rotor2 = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=false)
+#     rotor2 = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=false)
+#     resi2,_ = CCBlade.residual(10*pi/180, rotor2, sections[1], op[1]);
+
+# println(op[1])
+# # OperatingPoint{Float64, Float64, Float64, Float64, Float64, Float64, Float64}(10.053271233693533, 3.438762622588977, 0.43893530137807996, 10.0, 1.1995544084100105, 1.225, 0.0, 0.0, 0.0, 1.0, 1.0)
+# # OperatingPoint{Float64, Float64, Float64, Float64, Float64, Float64, Float64}(10.024556658162442, 3.4354896825396826, 0.877035064462535, 10.0, 1.1995544084100105, 1.225, 0.0, 0.0, 0.0, 1.0, 1.0)
+
+#     println(resi1)
+#     println(resi2)
+
+#     error("stop")
+
+    # ====================== SINGLE OP ========================9==================================
 
     
     op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)

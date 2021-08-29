@@ -91,52 +91,51 @@ end
 Define sectional properties for one station along rotor
     
 **Arguments**
-- `r::Float64`: radial location along blade (i.e. distance between section and rotation shaft)
+- `r::Float64`: radial location along blade, measured in the blade root frame
 - `chord::Float64`: corresponding local chord length
 - `theta::Float64`: corresponding twist angle (radians)
 - `af::Function or AFType`: if function form is: `cl, cd = af(alpha, Re, Mach)`
 - `x_az::Float64`: x location when blade is deflected in the azimuthal frame (m)
 - `y_az::Float64`: y location when blade is deflected in the azimuthal frame (m)
 - `z_az::Float64`: z=radial location when blade is deflected (m)
-- `coning::Float64`: total coning angle w.r.t. azimuthal frame (rad), i.e. lcon>0 for a blade deflected downwind
-- `sweep::Float64`: local sweep angle w.r.t. blade root at that location (rad)
 or 
 - `precone::Float`: precone angle (rad)
 - `x_def::Float64`: x location when blade is deflected, in the blade root frame (m)
 - `y_def::Float64`: y location when blade is deflected, in the blade root frame (m)
 - `z_def::Float64`: z location when blade is deflected, in the blade root frame (m)
 - `coning::Float64`: local coning angle w.r.t. blade root at that location, in blade root frame (rad), i.e. lcon>0 for a blade deflected downwind
+- `sweep::Float64`: local sweep angle w.r.t. blade root at that location (rad)
 """
 Section
 
-struct Section{TF1, TF2, TF3, TAF, TF4}
+struct Section{TF1, TF2, TF3, TAF, TF4, TF5}
     r::TF1  # different types b.c. of dual numbers.  often r is fixed, while chord/theta vary.
     chord::TF2
     theta::TF3
     af::TAF
-    x_az::TF4
+    x_az::TF4 #could discuss if it is better to give this in blade root...: definitely more convenient from structure point of view
     y_az::TF4
     z_az::TF4
-    coning::TF4
-    sweep::TF4
+    coning::TF5 # coning contains the local cone in blade root frame (see thrusttorque routine)
+    sweep::TF5
     #replace with curv object?? TFc<:Curvature
 end  
 
 # convenience constructor for undeflected blade. Avoiding kwargs so that it can still be broadcasted.
-Section(r, chord, theta, af
-    ) = Section(r, chord, theta, af, zero(r), zero(r), r, zero(r), zero(r))
+Section(r, chord, theta, af, precone=zero(r)
+    ) = Section(r, chord, theta, af,-r*sin(precone), zero(r), r*cos(precone), zero(r), zero(r))
 
-Section(chord, theta, af, x_az, y_az, z_az, coning, sweep) = begin
-    r = sqrt( y_az^2 + z_az^2 )
-    Section(r, chord, theta, af, x_az, y_az, z_az, coning, sweep)
-end
-
-Section(chord, theta, af, precone, x_def, y_def, z_def, coning, sweep) = begin
-    x_az = x_def * cos(precone) - z_def * sin(precone)
-    y_az = y_def
-    z_az = x_def * sin(precone) + z_def * cos(precone) 
-    coning -= precone  #total coning includes both local coning and precone (precone is defined as opposed to coning)  
-    r = sqrt( y_az^2 + z_az^2 )
+Section(chord, theta, af, precone, x_def, y_def, z_def, coning, sweep, coordsInAzimuthalFrame=false) = begin
+    if coordsInAzimuthalFrame
+        x_az = x_def
+        y_az = y_def
+        z_az = z_def
+    else
+        x_az = x_def * cos(precone) - z_def * sin(precone)
+        y_az = y_def
+        z_az = x_def * sin(precone) + z_def * cos(precone) 
+    end
+    r = z_def
     Section(r, chord, theta, af, x_az, y_az, z_az, coning, sweep)
 end
 
@@ -306,18 +305,43 @@ function residual(phi, rotor, section, op)
     ψ_Br = atan(z_hu,y_hu) #CAUTION: this is the psi as defined in Branlart2016 (not the same as the psi of the WT)
     r_Br   = sqrt(y_hu^2+z_hu^2)
 
+    # trigonometric factors
+    # p1f = (cc*cp*cc0 - sc*sc0)
+    # p2f = (cc*cp*sc0 + sc*cc0)
+    # p3 = cp 
+    # p4 = cc0*sp
+    # p5 = cc*sp
+    # p6 = sc0*sp
+    #APPROX PITCH:
+    p1 = cos(-precone+cone)
+    p2 = sin(-precone+cone)
+    p3 = 1. #->sweep through shearing assumption...?
+    p4 = 0.
+    p5 = 0.
+    p6 = 0.
+
     # epsilon ratios
     if rotor.wakeCyl
         a_tmp = (rotor.turbine  ? -.33 : +.1)     #arbitrary choice
         CT =  4*a_tmp*(1+a_tmp) #TENTATIVE APPROXIMATE VALUE (Branlart2016)
-        ϵx,ϵψ,ϵr = epsilons!(ψ_Br, r_Br, Rtip, yaw, tilt, λ, CT, rotor.no, rotor.we, rotor.k_u, rotor.I, rotor.Iff )
-    
+        ϵx,ϵψ,ϵr = epsilons!(ψ_Br, r_Br, Rtip, yaw, 0.0, λ, CT, rotor.no, rotor.we, rotor.k_u, rotor.I, rotor.Iff )
         #TODO: double check yaw convention: For positive chi, Branlart's x+ goes in the same direction as the wake, that is in my hub's y+. But I might use the wrong yaw convention.
 
     else   
+        #reset values to match previous CCblade version
         ϵx = 1.
         ϵψ = 1.
         ϵr = 0.
+
+        cT = 1.0
+        # cY = 0. #it was so 
+
+        sigma_p = B*chord/(2.0*pi*r)  #in the original CCBlade, r does not account for precone. It does in the new version, which leads to a small difference on sigma_p.
+        #---> this is questionable, theoretically z_az should always be used in this sigma_p.
+
+        Vx = (p1 * Vx - p2 * Vz) #velocity in the blade root frame
+        p1 = 1. #forcing the forces to remain in the blade root frame
+        p2 = 0.
     end
 
     # angle of attack
@@ -352,20 +376,6 @@ function residual(phi, rotor, section, op)
     cn = cl*cphi - cd*sphi
     ct = cl*sphi + cd*cphi
 
-    # trigonometric factors
-    # p1 = (cc*cp*cc0 - sc*sc0)
-    # p2 = (cc*cp*sc0 + sc*cc0)
-    # p3 = cp 
-    # p4 = cc0*sp
-    # p5 = cc*sp
-    # p6 = sc0*sp
-    #APPROX PITCH:
-    p1 = cos(-precone+cone)
-    p2 = sin(-precone+cone)
-    p3 = 1. 
-    p4 = 0.
-    p5 = 0.
-    p6 = 0.
 
     # changing frame from local airfoil to azm
     # TODO: use change of frame functions from supplemental?
@@ -743,7 +753,7 @@ and orientation of turbine.  See Documentation for angle definitions.
 - `Vhub::Float64`: freestream speed at hub (m/s)
 - `Omega::Float64`: rotation speed (rad/s)
 - `pitch::Float64`: pitch angle (rad)
-- `r::Float64`: radial location where inflow is computed (m)
+- `r::Float64`: radial location along the blade axis (in the blade root frame) where inflow is computed (m)
 - `precone::Float64`: precone angle (rad)
 - `yaw::Float64`: yaw angle (rad)
 - `tilt::Float64`: tilt angle (rad)
@@ -869,48 +879,49 @@ function thrusttorque(rotor, sections, outputs::Vector{TO}) where TO
     swpfull = [0.0; [s.sweep for s in sections]; 0.0]
 
     # extract loading as force components in the rotor plane c.s.,
-    # fx, fy, fz = localLoadsToBladeFrame(rotor, sections, outputs, toRotorPlane=true)
     fx, fy, fz = outputs.Np, -outputs.Tp, outputs.Np.*0.  #CAUTION: minus sign, see explanation in localLoadsToBladeFrame
+    if !rotor.wakeCyl 
+        #In the original CCBlade, the forces are computed in the blade root frame. Switching to Azm:
+        fx .*= cos(rotor.precone)
+    end
 
     # extend to the root and tip
     fxfull = [0.0; fx; 0.0] 
     fyfull = [0.0; fy; 0.0] 
     fzfull = [0.0; fz; 0.0]  #TODO: add Fz !!!
 
-    # radius vector components, from the hub to a location on the delfected blade, in the blade root c.s.:
-    xdef = [s.x_az for s in sections] #TODO: change here, assume sections stuff are in the azm frame!
-    ydef = [s.y_az for s in sections]
-    zdef = [s.z_az for s in sections]
-    # # switch back to the azimuthal frame, i.e. to the rotor plane:
-    # xdef_a = cos(rotor.precone) * xdef - sin(rotor.precone) * zdef
-    # ydef_a = ydef
-    # zdef_a = sin(rotor.precone) * xdef + cos(rotor.precone) * zdef
-    xdef_a = xdef
-    ydef_a = ydef
-    zdef_a = zdef
+    # position of the blade sections in the azimuthal frame, as per the definition of Section. 
+    x_az = [s.x_az for s in sections]
+    y_az = [s.y_az for s in sections]
+    z_az = [s.z_az for s in sections]
+
+    # Section stores the local coning angle. From the AZM frame perspective, we need to add the precone (minus sign because sign convention are opposed)
+    confull .-= rotor.precone
 
     # guessing the position of the root and the tip, in the azimuthal coordinates, after preconing and deflection
-    xdef_tip = xdef_a[end] + sin(confull[end]) * (rotor.Rtip-rvec[end])
-    ydef_tip = ydef_a[end] - sin(swpfull[end]) * cos(confull[end]) * (rotor.Rtip-rvec[end])
-    zdef_tip = zdef_a[end] + cos(swpfull[end]) * cos(confull[end]) * (rotor.Rtip-rvec[end])
-    xdef_root = xdef_a[1] + sin(confull[1]) * (rotor.Rhub-rvec[1])
-    ydef_root = ydef_a[1] - sin(swpfull[1]) * cos(confull[1]) * (rotor.Rhub-rvec[1])
-    zdef_root = zdef_a[1] + cos(swpfull[1]) * cos(confull[1]) * (rotor.Rhub-rvec[1])
+    x_az_tip = x_az[end] + sin(confull[end]) * (rotor.Rtip-rvec[end])
+    y_az_tip = y_az[end] - sin(swpfull[end]) * cos(confull[end]) * (rotor.Rtip-rvec[end])
+    z_az_tip = z_az[end] + cos(swpfull[end]) * cos(confull[end]) * (rotor.Rtip-rvec[end])
+    x_az_root = x_az[1] + sin(confull[1]) * (rotor.Rhub-rvec[1])
+    y_az_root = y_az[1] - sin(swpfull[1]) * cos(confull[1]) * (rotor.Rhub-rvec[1])
+    z_az_root = z_az[1] + cos(swpfull[1]) * cos(confull[1]) * (rotor.Rhub-rvec[1])
     # assembling it:
-    # xdeffull = [xdef_root ; xdef_a ; xdef_tip] #unused
-    ydeffull = [ydef_root ; ydef_a ; ydef_tip]
-    zdeffull = [zdef_root ; zdef_a ; zdef_tip]
+    # xdeffull = [x_az_root ; x_az ; x_az_tip] #unused
+    y_az_full = [y_az_root ; y_az ; y_az_tip]
+    z_az_full = [z_az_root ; z_az ; z_az_tip]
 
     # due to the deflection, Np and Tp may contribute to the torque = r cross (fx fy fz)
     thrust = fxfull
-    torque = ydeffull .* fzfull - zdeffull .* fyfull
-    #with no sweep and no coning:
-    # torque = Tpfull*rfull*cos(precone) = -fy * z * cos(precone)
+    torque = y_az_full .* fzfull - z_az_full .* fyfull
 
     # integrate Thrust and Torque (trapezoidal)
     # Note: we do neglect the blade axial extension
     T = rotor.B * FLOWMath.trapz(rfull, thrust)
     Q = rotor.B * FLOWMath.trapz(rfull, torque)
+
+    # println(rfull)
+    # println(thrust)
+    # println(torque)
 
     return T, Q
 end
@@ -956,6 +967,7 @@ If `toRotorPlane=true`, the precone angle is also accounted for such that the ou
 - `fy::Vector{Float64}`: force along y-dir (see Documentation).
 - `fz::Vector{Float64}`: force along z-dir (see Documentation).
 """
+#DEPRECATED. Use Andrew's utilisty functions instead.
 function localLoadsToBladeFrame(rotor, sections, outputs::Vector{TO}; toRotorPlane=false) where TO
 
     # Caution: For props Ct is defined positive towards the trailing edge, 
