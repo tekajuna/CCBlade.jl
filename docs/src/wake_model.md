@@ -452,17 +452,27 @@ U_t &= p_3 V_y  (1-a')
 
 ### BEM equations
 
-We equate the momentum equations and the local 2D aerodynamics, in order to obtain a expression for ``a,a'`` as a function of ``\phi``. Then, we can use the 1-residual equation
+The 1-equation residual reads:
 
 ```math
 R(\phi) = \frac{ \sin(\phi) }{ U_n } - \frac{ \cos(\phi) }{ U_t } = 0
 ```
-
+where the expressions for ``U_n, U_t`` were given at the bottom of the previous section, as a function of the unknown inductions.
 Also, `` W = \frac{U_n}{\sin \phi} = \frac{U_t}{\cos \phi}``.
 
-We equate the thrust coefficient deduced from axial momentum and from the airfoil aerodynamics:
+
+We obtain an expression for ``a,a'`` as a function of ``\phi`` by equating the momentum equations and the local 2D aerodynamics (recast in terms of local thrust coef.), 
+
 ```math
-\frac{a (1 + a)}{( (p_1 V_x + p_2 V_z) + (p_1 + p_2 \epsilon_r) V_x a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \sin^2\phi} \frac{c c_x}{8 \pi z_a} \overset{\Delta}{=} \kappa
+C_T = 4 a (1 + a) \epsilon_x \cos(\chi) \cos(\Theta) F = \frac{B c }{2 \pi z_a} \frac{W^2}{V_x^2} c_x
+```
+```math
+C_Q = 4 a' (1 + a) \epsilon_\psi V_y / V_x F = \frac{B c }{2 \pi z_a} \frac{W^2}{V_x^2} c_y
+```
+
+For the thrust coefficient, this leads to:
+```math
+\frac{a (1 + a)}{( (p_1 V_x + p_2 V_z) + (p_1 + p_2 \epsilon_r) V_x a )^2} = \frac{1}{ \epsilon_x \cos(\chi) \cos(\Theta)F V_x^2 \sin^2\phi} \frac{B c c_x}{8 \pi z_a} \overset{\Delta}{=} \kappa
 ```
 
 We can then solve for ``a``:
@@ -478,12 +488,14 @@ a = \frac{-2 b_1 b_2 \kappa +1 \pm \sqrt{4 b_1^2 \kappa - b_1 b_2 \kappa + 1}}{2
 !!! warning
     There are two roots to this equation. Hopefully, one can be ruled out from physics considerations. This has to be verified, though.
 
-Knowing ``a``, the tangential equilibrium yields
+Knowing ``a``, and using the various expressions for ``W``, the tangential equilibrium yields
 ...
 ```math
-\frac{a'}{1-a'} = \frac{b_1 + b_2 a}{V_x (1+a)}  \underbrace{\frac{p_3}{4\epsilon_\psi F \sin\phi \cos\phi} \frac{c c_y} {2\pi z_a} }_{\overset{\Delta}{=} \kappa'}
+\frac{a'}{1-a'} = \frac{b_1 + b_2 a}{V_x (1+a)}  \underbrace{\frac{p_3}{4\epsilon_\psi F \sin\phi \cos\phi} \frac{B c c_y} {2\pi z_a} }_{\overset{\Delta}{=} \kappa'}
 ```
 that we can easily invert for ``a'`` "as usual".
+
+:tada: 
 
 
 !!! note

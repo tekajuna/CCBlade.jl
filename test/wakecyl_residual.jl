@@ -19,32 +19,24 @@ using CCBlade
     
     # ============ PLAY WITH THIS : ==========================
     #THESE 3 SHOULD BE THE SAME AND THEY ARE NOT -> bug in precone???
-    precone = 0.
-    tilt = 2.5*pi/180 # -> works
+    # precone = 0.
+    # tilt = 2.5*pi/180 # -> works
+    #-> no wake model: exactly the same res when az=0, slightly different res over the entire rev (which is normal)
 
-    # precone = 2.5*pi/180
-    # tilt = 5.0*pi/180
+    precone = 2.5*pi/180
+    tilt = 5.0*pi/180
+    #-> no wake model: exactly the same res when az=0 AND over the entire rev
 
     # precone = -2.5*pi/180
     # tilt = 0.
+    #-> no wake model: exactly the same res when az=0, slightly different res over the entire rev (which is normal)
 
-    #wakecyl=true
-    # tilt 0, precone 0 : some difference of course
-    # tilt 5, precone 0 : very close
-    # tilt 0, precone 2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear)
-    # tilt 5, precone 2.5 : deviates at high tsr. CAUTION: must average over azm (because of shear+tilt)
-
-    #wakecyl=false
-    # tilt 0, precone 0 : some difference of course, same as wakecyl
-    # tilt 5, precone 0 : very close, same
-    # tilt 0, precone 2.5 : very close, CT/CP slightly above
-    # tilt 5, precone 2.5 : wrong
     
     Rtip_def = Rtip*cos(precone)
     Rhub_def = Rhub*cos(precone)
 
-    rotor = Rotor(Rhub, Rtip, B, precone=precone, turbine=true)
-    # rotor = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=true)
+    # rotor = Rotor(Rhub, Rtip, B, precone=precone, turbine=true)
+    rotor = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=true)
     
     r = [2.8667, 5.6000, 8.3333, 11.7500, 15.8500, 19.9500, 24.0500,
         28.1500, 32.2500, 36.3500, 40.4500, 44.5500, 48.6500, 52.7500,
@@ -89,45 +81,6 @@ using CCBlade
     pitch = 0.0
     
 
-# #### CHECK residual
-
-# # TODO: COMPARE precone,tilt combinations
-# precone = 0.
-# tilt = 2.5*pi/180 # -> works
-# Rtip_def = Rtip*cos(precone)
-# # Rhub_def = Rhub*cos(precone)
-# # sections = Section.(r, chord, theta, airfoils, precone)
-# sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), cos(precone)*r, zero(r), zero(r) )
-# # sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), r, zero(r), zero(r) )
-# Omega = Vinf*tsr/Rtip_def
-# op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
-#     # rotor1 = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=false)
-#     rotor1 = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=false)
-#     resi1,_ = CCBlade.residual(10*pi/180, rotor1, sections[1], op[1]);
-
-# println(op[1])
-
-# precone = 2.5*pi/180
-# tilt = 5.0*pi/180
-# Rtip_def = Rtip*cos(precone)
-# # Rhub_def = Rhub*cos(precone)
-# # sections = Section.(r, chord, theta, airfoils, precone)
-# sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), cos(precone)*r, zero(r), zero(r) )
-# # sections = Section.(r, chord, theta, airfoils, zero(r), zero(r), r, zero(r), zero(r) )
-# Omega = Vinf*tsr/Rtip_def
-# op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
-#     # rotor2 = Rotor(Rhub_def, Rtip_def, B; precone=precone, turbine=true, wakeCyl=false)
-#     rotor2 = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=false)
-#     resi2,_ = CCBlade.residual(10*pi/180, rotor2, sections[1], op[1]);
-
-# println(op[1])
-# # OperatingPoint{Float64, Float64, Float64, Float64, Float64, Float64, Float64}(10.053271233693533, 3.438762622588977, 0.43893530137807996, 10.0, 1.1995544084100105, 1.225, 0.0, 0.0, 0.0, 1.0, 1.0)
-# # OperatingPoint{Float64, Float64, Float64, Float64, Float64, Float64, Float64}(10.024556658162442, 3.4354896825396826, 0.877035064462535, 10.0, 1.1995544084100105, 1.225, 0.0, 0.0, 0.0, 1.0, 1.0)
-
-#     println(resi1)
-#     println(resi2)
-
-#     error("stop")
 
     # ====================== SINGLE OP ========================9==================================
 
@@ -138,6 +91,7 @@ using CCBlade
     
     
     nr = length(r)
+    #ref results for shear0.2, azm0
     Npnorm = [0.09718339956327719, 0.13149361678303992, 0.12220741751313423, 1.1634860128761517, 1.7001259694801125, 2.0716257635881257, 2.5120015027019678, 3.1336171133495045, 3.6916824972696465, 4.388661772599469, 5.068896486058948, 5.465165634664408, 6.035059239683594, 6.539134070994739, 6.831387531628286, 6.692665814418597, 4.851568452578296]
     Tpnorm = [-0.03321034106737285, -0.08727189682145081, -0.12001897678344217, 0.4696423333976085 , 0.6226256283641799 , 0.6322961942049257 , 0.6474145670774534 , 0.6825021056687035 , 0.6999861694557595 , 0.7218774840801262 , 0.7365515905555542 , 0.7493905698765747 , 0.7529143446199785 , 0.7392483947274653, 0.6981206044592225, 0.614524256128813, 0.40353047553570615]
     for i = 1:nr
@@ -163,6 +117,9 @@ using CCBlade
     # figure()
     # plot(r/Rtip, op.Vx)
     # plot(r/Rtip, op.Vy)
+      
+    # error("stop")
+
 
 
     # ---------------- plot residuals -----------------------
@@ -195,7 +152,7 @@ using CCBlade
     ylim([-1,1])
 
 
-    
+    # error("stop")
 
     # rr = range(0,R-eps,length=17)
     # ψψ = range(0,2*pi,length=13)'
@@ -256,7 +213,7 @@ using CCBlade
 
     # figure()
     for i = 1:ntsr
-        Omega = Vinf*tsrvec[i]/rotorR
+        Omega = Vinf*tsrvec[i]/Rtip_def
     
         ops = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azangles', hubHt, shearExp, rho)     #tilt!!!
         outs = solve.(Ref(rotor), sections, ops)

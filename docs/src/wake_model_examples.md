@@ -51,7 +51,6 @@ Let us use the same turbine as in the other [examples](howto.md).
     # create airfoil array 
     airfoils = aftypes[af_idx]
     
-    sections = Section.(r, chord, theta, airfoils)
     nothing # hide
 ```
 
@@ -59,10 +58,13 @@ Let us use the same turbine as in the other [examples](howto.md).
 The main parameters that we want to explore the influence of are:
 
 ```@example coned-rotor
-    precone = 10.0*pi/180  #the original value is -2.5 (negtive means forward)
+    precone = 10.0*pi/180  #the original value is 2.5 (negtive means forward)
     tilt = 0.0*pi/180     #the original value is 5.0 (positive means upwards)
     yaw = 0.0*pi/180
     shearExp = 0.0
+
+    sections = Section.(r, chord, theta, airfoils)
+    sections_coned = Section.(r, chord, theta, airfoils, precone)
 
     nothing # hide
 ```
@@ -94,7 +96,7 @@ As a reference, we will use the unconed rotor. Note the keyword argument `wakeCy
 
     rotor_nocone_nowake = Rotor(Rhub, Rtip, B; precone=0.0, turbine=true, wakeCyl=false)
 
-    op = windturbine_op.(Vinf, Omega, pitch, r, 0.0, yaw, tilt, azimuth, hubHt, shearExp, rho)
+    op = windturbine_op.(Vinf, Vinf*tsr/Rtip, pitch, r, 0.0, yaw, tilt, azimuth, hubHt, shearExp, rho)
     
     out_nocone_nowake = solve.(Ref(rotor_nocone_nowake), sections, op)
 
@@ -112,7 +114,7 @@ The second rotor to compare with has some precone but does not use the wake mode
 
     op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
     
-    out_cone_nowake = solve.(Ref(rotor_cone_nowake), sections, op)
+    out_cone_nowake = solve.(Ref(rotor_cone_nowake), sections_coned, op)
     
     nothing # hide
 ```
@@ -127,7 +129,7 @@ The third rotor has precone and uses the wake model.
 
     op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
     
-    out_cone_wake = solve.(Ref(rotor_cone_wake), sections, op)
+    out_cone_wake = solve.(Ref(rotor_cone_wake), sections_coned, op)
 
     nothing # hide
 ```
@@ -156,12 +158,186 @@ The third rotor has precone and uses the wake model.
 
     savefig("wakeEx1_Tp.svg") # hide
 
+
+    T1, Q1 = thrusttorque(rotor_nocone_nowake, sections, out_nocone_nowake)
+    T2, Q2 = thrusttorque(rotor_cone_nowake, sections, out_cone_nowake)
+    T3, Q3 = thrusttorque(rotor_cone_wake, sections, out_cone_wake)
+
+    println("$T1, $Q1")
+    println("$T2, $Q2")
+    println("$T3, $Q3")
+
+    cpvec_nocone_nowake, ctvec_nocone_nowake, _ = nondim(T1, Q1, Vinf, Vinf*tsr/Rtip, rho, rotor_nocone_nowake, "windturbine")
+    cpvec_cone_nowake, ctvec_cone_nowake, _ = nondim(T2, Q2, Vinf, Omega, rho, rotor_cone_nowake, "windturbine")
+    cpvec_cone_wake, ctvec_cone_wake, _ = nondim(T3, Q3, Vinf, Omega, rho, rotor_cone_wake, "windturbine")
+
+    println("$cpvec_nocone_nowake, $ctvec_nocone_nowake")
+    println("$cpvec_cone_nowake, $ctvec_cone_nowake")
+    println("$cpvec_cone_wake, $ctvec_cone_wake")
+
     nothing # hide
 ```
 
 ![](wakeEx1_Np.svg)
 ![](wakeEx1_Tp.svg)
 
+
+Let's compare CP cuves:
+
+The wake model gives a lot more CP... is that correct?? Need data to validate this?
+
+``` @example coned-rotor
+
+    ntsr = 20  # number of tip-speed ratios
+    tsrvec = range(2, stop=15, length=ntsr)
+    
+    cpvec_nocone_nowake = zeros(ntsr)  # initialize arrays
+    ctvec_nocone_nowake = zeros(ntsr)
+    cpvec_cone_nowake = zeros(ntsr)
+    ctvec_cone_nowake = zeros(ntsr)
+    cpvec_cone_wake = zeros(ntsr)
+    ctvec_cone_wake = zeros(ntsr)
+    
+    #azangles = pi/180*[0.0, 90.0, 180.0, 270.0]
+    azangles = [0.0,]
+
+    # figure()
+    for i = 1:ntsr
+        #-1-
+        omega = Vinf*tsrvec[i]/Rtip
+        ops = windturbine_op.(Vinf, omega, pitch, r, 0.0, yaw, tilt, azangles', hubHt, shearExp, rho)
+
+        outs1 = solve.(Ref(rotor_nocone_nowake), sections, ops)   
+        T, Q = thrusttorque(rotor_nocone_nowake, sections, outs1)
+
+        cpvec_nocone_nowake[i], ctvec_nocone_nowake[i], _ = nondim(T, Q, Vinf, omega, rho, rotor_nocone_nowake, "windturbine")
+
+        #-2-
+        omega = Vinf*tsrvec[i]/rotorR
+        ops = windturbine_op.(Vinf, omega, pitch, r, precone, yaw, tilt, azangles', hubHt, shearExp, rho)     
+        
+        outs2 = solve.(Ref(rotor_cone_nowake), sections_coned, ops)   
+        T, Q = thrusttorque(rotor_cone_nowake, sections_coned, outs2)
+    
+        cpvec_cone_nowake[i], ctvec_cone_nowake[i], _ = nondim(T, Q, Vinf, omega, rho, rotor_cone_nowake, "windturbine")
+
+        #-3-
+        omega = Vinf*tsrvec[i]/rotorR
+        ops = windturbine_op.(Vinf, omega, pitch, r, precone, yaw, tilt, azangles', hubHt, shearExp, rho)     
+        
+        outs3 = solve.(Ref(rotor_cone_wake), sections_coned, ops)   
+        T, Q = thrusttorque(rotor_cone_wake, sections_coned, outs3)
+    
+        cpvec_cone_wake[i], ctvec_cone_wake[i], _ = nondim(T, Q, Vinf, omega, rho, rotor_cone_wake, "windturbine")
+    end
+    
+
+    figure()
+    plot(tsrvec,cpvec_nocone_nowake)
+    plot(tsrvec,cpvec_cone_nowake)
+    plot(tsrvec,cpvec_cone_wake)
+    plot(tsr,0.0,"x")
+    xlabel(L"\lambda")
+    ylabel(L"C_P")
+
+    savefig("wakeEx1_CP.svg") # hide
+
+    figure()
+    plot(tsrvec,ctvec_nocone_nowake)
+    plot(tsrvec,ctvec_cone_nowake)
+    plot(tsrvec,ctvec_cone_wake)
+    xlabel(L"\lambda")
+    ylabel(L"C_T")
+
+    savefig("wakeEx1_CT.svg") # hide
+
+    nothing # hide
+```
+
+![](wakeEx1_CP.svg)
+![](wakeEx1_CT.svg)
+
+
+
+
+### A glitch with negative cone?
+
+The residual seem not well behaved. What about starting up the solver in the center of the interval, instead of close to 0?
+
+```@example coned-rotor
+
+
+    #CHOOSE A SPANWISE LOCATION index
+    isp = length(r)-1
+
+    #negative precone
+    precone = -2.5*pi/180
+
+    #recompute what we need:
+    sections = Section.(r, chord, theta, airfoils, precone)
+
+    rotor_nowake = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=false)
+    rotor_wake = Rotor(Rhub, Rtip, B; precone=precone, turbine=true, wakeCyl=true)
+
+    rotorR = Rtip*cos(precone)
+    Omega = Vinf*tsr/rotorR
+    op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, shearExp, rho)
+    
+
+    # -- solve --
+
+    out_nowake = solve.(Ref(rotor_nowake), sections, op)
+    out_wake = solve.(Ref(rotor_wake), sections, op)
+
+    figure()
+    plot(r/Rtip, out_nowake.phi.*180. /pi)
+    plot(r/Rtip, out_wake.phi.*180. /pi)
+    plot(r[isp]/Rtip, 0.,"x") #THIS IS THE LOCAATION WE CHOSE FOR LOOKING AT RESIDUALS
+
+    xlabel(L"r/R")
+    ylabel(L"\phi")
+
+    legend(["no cylinder wake", "with cylinder wake"])
+
+    savefig("wakeEx1.1_phi.svg") # hide
+
+
+    # -- residual --
+
+    #creating phi vector refined near 0
+    nn = 1000
+    p1 = range(-180.,-1.,length=100)
+    p2 = range(-1,1.,length=nn)
+    phi = vcat(p1[1:end-1],p2,-p1[end-1:-1:1])
+    
+    Res_wake = zero(phi)
+    Res_nowake = zero(phi)
+
+    # compute and plot the residual 
+    for i =1:length(phi)
+        Res_nowake[i] = CCBlade.residual(phi[i].* pi/180, rotor_nowake, sections[isp], op[isp])[1]
+        Res_wake[i] = CCBlade.residual(phi[i].* pi/180, rotor_wake, sections[isp], op[isp])[1]
+    end
+
+    figure()
+    plot(phi,Res_nowake)
+    plot(phi,Res_wake)
+    plot(out_nowake[isp].phi.* 180/pi, 0.,"x")
+    plot(out_wake[isp].phi.* 180/pi, 0.,"x")
+    
+    xlabel(L"\phi")
+    ylabel(L"residual")
+
+    ylim([-.25,0.5])
+    xlim([-1,5])
+
+    savefig("wakeEx1.1_res.svg") # hide
+
+    nothing # hide
+```
+
+![](wakeEx1.1_phi.svg)
+![](wakeEx1.1_res.svg)
 
 
 
