@@ -249,7 +249,7 @@ end
 """
 (private) residual function
 """
-function residual(phi, rotor, section, op)
+function residual(phi, rotor, section, op;trial::Int64=1)
 
     # unpack inputs
     r = section.r
@@ -295,7 +295,7 @@ function residual(phi, rotor, section, op)
     cp = cos(pitch)
     cY = cos(yaw)
     cT = cos(rotor.tilt)
-    λ  = op.Vhub / Rtip * op.Omega
+    λ  =  Rtip * op.Omega / op.Vhub 
     
     # blade coordinates in the hub frame ≡ cylinder wake frame, in cylindrical coordinates
     #  because we neglect the tilt angle in the computation of the epsilon factors
@@ -493,7 +493,20 @@ function residual(phi, rotor, section, op)
 
         # ------- residual function -------------
         # R = sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap)
-        R = sin(phi)/Un - cos(phi)/Ut
+        #R = sin(phi)/Un - cos(phi)/Ut
+
+        if trial == 1
+            R = sin(phi)/Un - cos(phi)/Ut # Fails later portions
+        end 
+        if trial == 2
+            R = cos(phi)/Ut - sin(phi)/Un
+        end
+        if trial == 3
+            R = sin(phi)- cos(phi) * Un/Ut #Matches later portions
+        end
+        if trial == 4
+            R = sin(phi)*(p3 * Vy )*(1 - ap)  - cos(phi) * (b1 + b2 * a)
+        end
 
         # println(R)
         # # println(sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap))
@@ -527,10 +540,17 @@ function residual(phi, rotor, section, op)
     u *= G
     v *= G
 
+    """
     if rotor.turbine
         return R, Outputs(-Np, -Tp, -a, -ap, -u, -v, phi, -alpha, W, -cl, cd, -cn, -ct, F, G)
     else
         return R, Outputs(Np, Tp, a, ap, u, v, phi, alpha, W, cl, cd, cn, ct, F, G)
+    end
+    """
+    if rotor.turbine
+        return R, Outputs(-Np, -Tp, -a, -ap, -u, -v, phi, -alpha, W, -cl, cd, -cn, -ct, F, G), Un, Ut, ap, Vy, b1,b2,p3,kplhs
+    else
+        return R, Outputs(Np, Tp, a, ap, u, v, phi, alpha, W, cl, cd, cn, ct, F, G), Un, Ut, ap, Vy, b1,b2,p3,kplhs
     end
 
 end
