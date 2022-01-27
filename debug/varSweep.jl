@@ -43,7 +43,7 @@ pitch = 0.0
 # Negative Cone Glitch with Residual Issue
 
 #CHOOSE A SPANWISE LOCATION index
-isp = 11#length(r)-1
+isp = 12#length(r)-1
 
 #negative precone
 precone = -2.5*pi/180
@@ -60,7 +60,7 @@ op = windturbine_op.(Vinf, Omega, pitch, r, precone, yaw, tilt, azimuth, hubHt, 
 
 
 # -- solve --
-Rtype=3 # 1 is default
+Rtype=1 # 1 is default
 sol_nowake = solve.(Ref(rotor_nowake), sections, op,trial=1)
 sol_wake = solve.(Ref(rotor_wake), sections, op,trial=Rtype)
 
@@ -84,68 +84,55 @@ fname = string("Tfigs/wakeEx1.1_phi",string(Rtype), ".svg")
 #creating phi vector refined near 0
 nn = 1000
 p1 = range(-180.,-1.,length=1000)
-p2 = range(-1,1.,length=nn)
-phi = vcat(p1[1:end-1],p2,-p1[end-1:-1:1])
-# phi = range(-1,90,8000)
+p2 = range(-1.,1.,length=nn)
+# phi = vcat(p1[1:end-1],p2,-p1[end-1:-1:1])
+phi = range(-1.,90.,length=10000)
+# phi = vcat(phi)
 
 Res_wake = zero(phi)
 Res_nowake = zero(phi)
-ap_wake = zero(phi)
-a_wake = zero(phi)
-Un_wake = zero(phi)
-Ut_wake = zero(phi)
-ap= zero(phi)
-Vy= zero(phi)
-b1= zero(phi)
-b2= zero(phi)
-p3= zero(phi)
-kplhs=zero(phi)
+
+test=CCBlade.residual(phi[1].*pi/180,rotor_wake,sections[isp],op[isp],trial=Rtype)
+nvars= length(test[11])
+print(nvars)
+varwake=zeros(Float64,nvars,length(phi))
+varnowake=zeros(Float64,nvars,length(phi))
+
 print("Computing residuals now")
 # compute and plot the residual
-for i =1:length(phi)
-    CCsol = CCBlade.residual(phi[i].* pi/180, rotor_wake, sections[isp], op[isp],trial=Rtype)
-    Res_nowake[i] = CCBlade.residual(phi[i].* pi/180, rotor_nowake, sections[isp], op[isp],trial=1)[1]
-    Res_wake[i] = CCsol[1]
-    ap_wake[i]  = CCsol[2].ap
-    a_wake[i]  = CCsol[2].a
-    Un_wake[i] = CCsol[3]
-    Ut_wake[i] = CCsol[4]
+for i = 1:length(phi)
+    wakesol = CCBlade.residual(phi[i].* pi/180, rotor_wake, sections[isp], op[isp],trial=Rtype)
+    nowakesol = CCBlade.residual(phi[i].* pi/180, rotor_nowake, sections[isp], op[isp],trial=1)
+    Res_nowake[i] =  nowakesol[1]
+    Res_wake[i] = wakesol[1]
 
-    ap[i]= CCsol[5]
-    Vy[i]= CCsol[6]
-    b1[i]= CCsol[7]
-    b2[i]= CCsol[8]
-    p3[i]= CCsol[9]
-    kplhs[i]=CCsol[10]
+    varwake[:,i]=wakesol[11]
+    varnowake[:,i]=nowakesol[11]
 
+  
 
 
 end
 
-
 figure()
 plot(phi,Res_nowake,label="Residual (nowake)",linewidth=2,linestyle="--")
 plot(phi,Res_wake,label="Residual (wake)",linestyle="--")
-plot(sol_nowake[isp].phi.* 180/pi, 0.,"x", label="Nowake Solution")
-plot(sol_wake[isp].phi.* 180/pi, 0.,"x", label="Wake Solution")
-plot(phi,ap_wake,label=L"a^\prime (wake)")
-plot(phi,a_wake,label=L"a (wake)")
-plot(phi,Un_wake,label=L"U_n (wake)")
-plot(phi,Ut_wake,label=L"U_t (wake)")
-plot(phi,ap,label=L"ap (wake)")
-plot(phi,Vy,label=L"Vy (wake)")
-plot(phi,b1,label=L"b1 (wake)")
-plot(phi,b2,label=L"b2 (wake)")
-plot(phi,p3,label=L"p3 (wake)")
-plot(phi,kplhs,label="kplhs (wake)")
-plot([-180,180],[0,0],color = "black",linestyle ="dashdot")
-
 xlabel(L"\phi (degrees")
 ylabel(L"residual")
-
 ylim([-.5,1.2])
 xlim([-2,6])
 legend()
 fname = string("Tfigs/wakeEx1.1_resAND",string(Rtype), ".svg")
 show()
+for i = 1:length(test[11])
+    print(i)
+    plot(phi,varwake[i,:],label="wake")
+    plot(phi,varnowake[i,:],label="not")
+    legend()
+    title(i)
+    # ylim([-.5,1.2])
+    show()
+
+end
+
 # savefig(fname) # hide

@@ -249,7 +249,7 @@ end
 """
 (private) residual function
 """
-function residual(phi, rotor, section, op;trial::Int64=1)
+function residual(phi, rotor, section, op; trial::Int64=1)
 
     # unpack inputs
     r = section.r
@@ -496,17 +496,20 @@ function residual(phi, rotor, section, op;trial::Int64=1)
         #R = sin(phi)/Un - cos(phi)/Ut
 
         if trial == 1
-            R = sin(phi)/Un - cos(phi)/Ut # Fails later portions
+            R = sin(phi)/Un - cos(phi)/Ut # Fails later portions --with corrected TSR it now is opposite
         end 
         if trial == 2
             R = cos(phi)/Ut - sin(phi)/Un
         end
         if trial == 3
-            R = sin(phi)- cos(phi) * Un/Ut #Matches later portions
+            R = sin(phi)- cos(phi) * Un/Ut #Matches later portions --with corrected TSR it now is opposite
         end
         if trial == 4
             R = sin(phi)*(p3 * Vy )*(1 - ap)  - cos(phi) * (b1 + b2 * a)
         end
+        # if trial == 5
+        sin(phi)/(Vx + u) == cos(phi)/(Vy - v )
+        # end
 
         # println(R)
         # # println(sin(phi)/(1 + a) - Vx/Vy*cos(phi)/(1 - ap))
@@ -548,9 +551,9 @@ function residual(phi, rotor, section, op;trial::Int64=1)
     end
     """
     if rotor.turbine
-        return R, Outputs(-Np, -Tp, -a, -ap, -u, -v, phi, -alpha, W, -cl, cd, -cn, -ct, F, G), Un, Ut, ap, Vy, b1,b2,p3,kplhs
-    else
-        return R, Outputs(Np, Tp, a, ap, u, v, phi, alpha, W, cl, cd, cn, ct, F, G), Un, Ut, ap, Vy, b1,b2,p3,kplhs
+        return R, Outputs(-Np, -Tp, -a, -ap, -u, -v, phi, -alpha, W, -cl, cd, -cn, -ct, F, G), Un, Ut, ap, Vy, b1,b2,p3,kplhs, [Un,Ut,ap,Vy,b1,b2,p3,kplhs,kp,ϵx,ϵψ,ϵr,u,a,Vx,Vy]
+    else                                                                                                                        #  2o 2o       opp   hmm            d      off                       
+        return R, Outputs(Np, Tp, a, ap, u, v, phi, alpha, W, cl, cd, cn, ct, F, G)#, Un, Ut, ap, Vy, b1,b2,p3,kplhs
     end
 
 end
@@ -602,7 +605,7 @@ Solve the BEM equations for given rotor geometry and operating point.
 **Returns**
 - `outputs::Outputs`: BEM output data including loads, induction factors, etc.
 """
-function solve(rotor, section, op)
+function solve(rotor, section, op; trial=1)
 
     # error handling
     if typeof(section) <: Vector
